@@ -26,7 +26,9 @@ source-repository head
 library
   exposed-modules:
       AsyncRequests
+      HeapUtils
       Lib
+      State
       UI
   other-modules:
       Paths_HaskellDebug
@@ -39,6 +41,7 @@ library
     , containers
     , ghc-heap-view
     , ghc-prim
+    , megaparsec
     , microlens
     , microlens-ghc
     , microlens-mtl
@@ -64,6 +67,7 @@ executable HaskellDebug-exe
     , containers
     , ghc-heap-view
     , ghc-prim
+    , megaparsec
     , microlens
     , microlens-ghc
     , microlens-mtl
@@ -90,6 +94,7 @@ test-suite HaskellDebug-test
     , containers
     , ghc-heap-view
     , ghc-prim
+    , megaparsec
     , microlens
     , microlens-ghc
     , microlens-mtl
