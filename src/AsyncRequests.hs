@@ -13,6 +13,7 @@ import Control.Concurrent.MVar
 import Control.Concurrent (forkFinally)
 import Control.Monad.Trans.Maybe (MaybeT)
 import Control.Monad.Reader
+import GHC.IO (unsafePerformIO)
 
 class Monad m => MonadReq r m | m -> r where
     send :: (Show a, forall x. Ord (r x), Typeable r, Typeable a) => r a -> m (Maybe a)
@@ -39,13 +40,24 @@ data Boxed where
 instance Show Boxed where
     show (Boxed x) = "Boxed " <> show x
 data AsyncRequests r = AR { cache :: (MVar (M.Map (Exists r) (ReqState))), process ::  (forall a. r a -> IO a), onFinish :: (forall a. r a -> IO ()) }
-
+instance (forall x. Show (r x)) => Show (AsyncRequests r) where
+    show (AR mv _ _) = unsafePerformIO $ do
+           o <- readMVar  mv
+           pure $ show o
 
 type Cache r = (AsyncRequests r)
 
-
 newtype Caching r m a = Caching { runCaching :: ReaderT (Cache r) m a }
     deriving (Functor, Applicative, Monad, MonadIO, MonadTrans)
+mkCache :: (forall x. r x -> IO x) -> (forall x. r x -> IO ()) -> IO (Cache r)
+mkCache process onFinish = do
+    mv <- newMVar M.empty
+    pure (AR mv process onFinish)
+
+runCachingT :: Cache r -> Caching r m a -> m a
+runCachingT cache (Caching m) =
+    runReaderT m cache
+
 
 sendRequest :: (MonadIO m, Typeable a, Typeable r, Show a, forall x. Ord (r x)) => r a -> Caching r m (Maybe a)
 sendRequest r = do
@@ -57,11 +69,11 @@ sendRequest r = do
         Just (Done (Boxed a)) -> pure (cast a)
         Just Failed -> return Nothing
         Nothing -> liftIO $ do
-            modifyMVar_ (cache s) $ \m -> return $ M.insert (Exists r) InProgress m
-            forkFinally (process s r) $ \res -> do
-                modifyMVar_ (cache s) $ \m -> return $ case res of
-                    Left _ -> M.insert (Exists r) Failed m
-                    Right a -> M.insert (Exists r) (Done (Boxed a)) m
+            modifyMVar_ (cache s) $ \m' -> return $ M.insert (Exists r) InProgress m'
+            _tid <- forkFinally (process s r) $ \res -> do
+                modifyMVar_ (cache s) $ \m' -> return $ case res of
+                    Left _ -> M.insert (Exists r) Failed m'
+                    Right a -> M.insert (Exists r) (Done (Boxed a)) m'
                 onFinish s r
             return Nothing
 

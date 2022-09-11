@@ -6,15 +6,15 @@
 module State where
 
 
-import GHC.Stack.CCS as Stack
 import qualified GHC.HeapView as Heap
 import qualified Data.Vector as V
 import qualified Data.Text as T
-import Control.Monad.Trans.Maybe
-import AsyncRequests
-import WhereFrom
-import Lens.Micro.TH
-
+import AsyncRequests ( MonadReq(..), Caching, AsyncRequests, Cache, runCachingT )
+import WhereFrom ( From(ipLoc), Location(lFile) )
+import Lens.Micro.TH ( makeLenses )
+import qualified Data.Text.IO as T
+import Debug.Trace (traceM)
+import Control.Monad.Trans (MonadIO)
 
 
 lookupCurrentNode :: CoreState -> Maybe (Heap.HeapGraphEntry From)
@@ -29,36 +29,42 @@ data RenderState = RenderState {
     _fileContent :: Maybe (V.Vector T.Text),
     _fileImportant :: Maybe From
 } deriving Show
+data Requests a where
+    LoadFile :: T.Text -> Requests (V.Vector T.Text)
+deriving instance Show (Requests a)
 data AppState = AppState {
     _coreState :: CoreState,
-    _renderState :: RenderState
-} deriving Show
+    _renderState :: RenderState,
+    _runAsync :: AsyncRequests Requests
+}
 makeLenses ''CoreState
 makeLenses ''RenderState
 makeLenses ''AppState
 
-data Requests a where
-    LoadFile :: T.Text -> Requests (V.Vector T.Text)
-deriving instance Ord (Requests a) where
-    compare (LoadFile a) (LoadFile b) = compare a b
-    compare (LoadFile _) _ = LT
-    compare _ (LoadFile _) = GT
 
-loadRenderState :: MonadReq Requests m => CoreState -> m (Maybe RenderState)
-loadRenderState cs = do
-    Heap.HeapGraphEntry{Heap.hgeData = from} <- pure (lookupCurrentNode cs)
-    content <- with' ipLoc from (\loc -> send (LoadFile (lFile loc)))
+runRequest :: Requests x -> IO x
+runRequest (LoadFile path) = do
+    traceM $ "Loading file: " <> T.unpack path
+    V.fromList  . T.lines . T.filter (/= '\r') <$> T.readFile (T.unpack path)
+
+deriving instance Eq (Requests a)
+instance Ord (Requests a) where
+    compare (LoadFile a) (LoadFile b) = compare a b
+
+loadRenderState :: MonadIO m => CoreState -> Cache Requests -> m RenderState
+loadRenderState cs c = do
+    let from = Heap.hgeData <$> lookupCurrentNode cs 
+    content <- runCachingT c $ with (fmap lFile . ipLoc =<< from) (\loc -> send (LoadFile loc))
     pure $ RenderState content from
 
+rebuildState :: MonadIO m => AppState -> m AppState
+rebuildState as = do
+    rs <- loadRenderState (_coreState as) (_runAsync as)
+    pure $ AppState (_coreState as) rs (_runAsync as)
 
-with :: Applicative m => (a -> b) -> Maybe a -> (b -> m (Maybe c)) -> m (Maybe c)
-with f Nothing g = pure Nothing
-with f (Just a) g = g (f a)
-with' :: Applicative m => (a -> Maybe b) -> Maybe a -> (b -> m (Maybe c)) -> m (Maybe c)
-with' f Nothing g = pure Nothing
-with' f (Just a) g = case (f a) of
-    Nothing -> pure Nothing
-    Just b -> g b
+with :: Applicative m => Maybe a -> (a -> m (Maybe c)) -> m (Maybe c)
+with Nothing _ = pure Nothing
+with (Just a) g = g a
 
 -- loadFrom :: Heap.HeapGraphIndex -> M t (Maybe From)
 -- loadFrom idx =

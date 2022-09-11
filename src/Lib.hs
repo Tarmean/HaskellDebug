@@ -1,4 +1,4 @@
--- {-# OPTIONS_GHC -ddump-simpl -dsuppress-uniques -fforce-recomp -O0 #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-uniques -fforce-recomp -O0 #-}
 {-# OPTIONS_GHC -O0 #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -17,7 +17,12 @@ import qualified Data.Vector as V
 import UI
 
 someFunc :: IO ()
-someFunc = printValue $ foo [1,5,8,9,12]
+someFunc = do
+   let x = foo [1,5,8,9,12]
+   print =<< whereFrom x
+   hg <- buildHeapGraph 10 () $ asBox x 
+   print $ ppHeapGraph hg
+   printValue $ x
 
 
 
