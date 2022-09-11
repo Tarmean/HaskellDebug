@@ -24,51 +24,49 @@ import Brick.Widgets.Border
 import GHC.Stack.CCS as Stack
 import State
 
-type FileCache = M.Map FilePath (V.Vector T.Text)
-
 
 type Label = ()
-type M t a = EventM Label (AppState t) a
+-- type M t a = EventM Label (AppState t) a
 
-lookupEntry :: Heap.HeapGraphIndex -> M t (Maybe (Heap.HeapGraphEntry t))
-lookupEntry idx = use (heapGraph . to (Heap.lookupHeapGraph idx))
-renderIdx :: Heap.HeapGraphIndex -> M t (Widget Label)
-renderIdx idx = do
-    loadFrom idx >>= \case
-        Nothing -> pure $ str "Nothing"
---     from <- loadFrom idx
---     pure $ str $ T.unpack $ ipName from
-retrieveCache :: FilePath -> M t (V.Vector T.Text)
-retrieveCache fp = do
-  use (afileCache . at fp) >>= \case
-    Just t -> return t
-    Nothing -> do
-      t <- liftIO (T.readFile fp)
-      let tl = V.fromList $ T.lines  t
-      afileCache . at fp ?= tl
-      return tl
-type Loc = T.Text
-sourceString :: Loc -> M t T.Text
-sourceString loc = do
-  let
-    (path, line, cols) = case T.splitOn ":" loc of
-      [a,b,c] -> (a,b,c)
-      o -> error $ "sourceString: " <> show loc <> ", " <> show o
-    (start,end) = case map readT $ T.splitOn "-" cols of
-      [a,b] -> (a,b)
-      o -> error $ "sourceString: " <> show loc <> ", " <> show o
-  theLine <- (V.! (readT line - 1)) <$> retrieveCache (T.unpack path) 
-  let theSlice = T.take (end - start+1) (T.drop (start-1) theLine)
-  pure theSlice
-readT :: T.Text -> Int
-readT = read . T.unpack
+-- lookupEntry :: Heap.HeapGraphIndex -> M t (Maybe (Heap.HeapGraphEntry t))
+-- lookupEntry idx = use (heapGraph . to (Heap.lookupHeapGraph idx))
+-- renderIdx :: Heap.HeapGraphIndex -> M t (Widget Label)
+-- renderIdx idx = do
+--     loadFrom idx >>= \case
+--         Nothing -> pure $ str "Nothing"
+-- --     from <- loadFrom idx
+-- --     pure $ str $ T.unpack $ ipName from
+-- retrieveCache :: FilePath -> M t (V.Vector T.Text)
+-- retrieveCache fp = do
+--   use (afileCache . at fp) >>= \case
+--     Just t -> return t
+--     Nothing -> do
+--       t <- liftIO (T.readFile fp)
+--       let tl = V.fromList $ T.lines  t
+--       afileCache . at fp ?= tl
+--       return tl
+-- type Loc = T.Text
+-- sourceString :: Loc -> M t T.Text
+-- sourceString loc = do
+--   let
+--     (path, line, cols) = case T.splitOn ":" loc of
+--       [a,b,c] -> (a,b,c)
+--       o -> error $ "sourceString: " <> show loc <> ", " <> show o
+--     (start,end) = case map readT $ T.splitOn "-" cols of
+--       [a,b] -> (a,b)
+--       o -> error $ "sourceString: " <> show loc <> ", " <> show o
+--   theLine <- (V.! (readT line - 1)) <$> retrieveCache (T.unpack path) 
+--   let theSlice = T.take (end - start+1) (T.drop (start-1) theLine)
+--   pure theSlice
+-- readT :: T.Text -> Int
+-- readT = read . T.unpack
 
 rHeap :: HeapGraph a -> Widget l
 rHeap h = border $ str (ppHeapGraph h)
 
 app :: App (AppState a) e l
 app = App {
-  appDraw = \s -> [rHeap (s^.heapGraph)],
+  appDraw = \s -> [rHeap (s^. coreState . heapGraph)],
   appChooseCursor = neverShowCursor,
   appHandleEvent = \e -> case e of
     VtyEvent (Inp.EvKey Inp.KEsc []) -> halt
@@ -80,7 +78,9 @@ app = App {
 printValue :: a -> IO ()
 printValue a = do
   hg <- buildHeapGraph 20 () (asBox a)
-  let s = AppState mempty mempty hg []
+  let core = CoreState hg []
+  render <- loadRenderState core 
+  let s = AppState core render
   _ <- defaultMain @() app s
   pure ()
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 module State where
@@ -10,6 +11,7 @@ import qualified Data.Vector as V
 import qualified Data.Text as T
 import Control.Monad.Trans.Maybe
 import AsyncRequests
+import Lens.Micro.TH
 
 data Location = Location {
    lFile :: T.Text,
@@ -49,27 +51,41 @@ data CoreState a = CoreState {
   _activeNode :: [Heap.HeapGraphIndex]
 } deriving (Show)
 data RenderState = RenderState {
-    _fileContent :: V.Vector T.Text,
-    _fileImportant :: From
+    _fileContent :: Maybe (V.Vector T.Text),
+    _fileImportant :: Maybe From
 } deriving Show
 data AppState a = AppState {
     _coreState :: CoreState a,
     _renderState :: RenderState
 } deriving Show
+makeLenses ''CoreState
+makeLenses ''RenderState
+makeLenses ''AppState
 
 data Requests a where
     LoadFile :: T.Text -> Requests (V.Vector T.Text)
     WhereFrom :: Heap.Box -> Requests From
+deriving instance Ord (Requests a) where
+    compare (WhereFrom a) (WhereFrom b) = compare (typeRep reallyUnsafePtrEq a b
+    compare (LoadFile a) (LoadFile b) = compare a b
+    compare (LoadFile _) _ = LT
+    compare _ (LoadFile _) = GT
 
-loadRenderState :: MonadReq Requests m => CoreState a -> m (Maybe RenderState)
-loadRenderState cs = runMaybeT $ do
-    Just Heap.HeapGraphEntry{hgeBox = box} <- pure (lookupCurrentNode cs)
-    Just from <- send (WhereFrom box)
-    Just loc <- pure (ipLoc from)
-    Just content <- send (LoadFile (lFile loc))
+loadRenderState :: MonadReq Requests m => CoreState a -> m RenderState
+loadRenderState cs = do
+    from <- with Heap.hgeBox (lookupCurrentNode cs) $ \box -> send (WhereFrom box)
+    content <- with' ipLoc from (\loc -> send (LoadFile (lFile loc)))
     pure $ RenderState content from
 
 
+with :: Applicative m => (a -> b) -> Maybe a -> (b -> m (Maybe c)) -> m (Maybe c)
+with f Nothing g = pure Nothing
+with f (Just a) g = g (f a)
+with' :: Applicative m => (a -> Maybe b) -> Maybe a -> (b -> m (Maybe c)) -> m (Maybe c)
+with' f Nothing g = pure Nothing
+with' f (Just a) g = case (f a) of
+    Nothing -> pure Nothing
+    Just b -> g b
 -- loadFrom :: Heap.HeapGraphIndex -> M t (Maybe From)
 -- loadFrom idx =
 --     use (aInfoMap . at idx) >>= \case

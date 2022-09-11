@@ -48,6 +48,7 @@ ghc-options:
 - -Wredundant-constraints
 - -O2
 - -finfo-table-map
+- -XGHC2021
 
 library:
   source-dirs: src

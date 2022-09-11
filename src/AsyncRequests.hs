@@ -10,11 +10,13 @@ import Data.Typeable
 import Data.Kind
 import Control.Monad.Trans
 import Control.Concurrent.MVar
+import Control.Concurrent (forkFinally)
 import Control.Monad.Trans.Maybe (MaybeT)
+import Control.Monad.Reader
 
 class Monad m => MonadReq r m | m -> r where
-    send :: r a -> m (Maybe a)
-    default send :: (MonadTrans t, m ~ t n, MonadReq r n) => r a -> m (Maybe a)
+    send :: (Show a, forall x. Ord (r x), Typeable r, Typeable a) => r a -> m (Maybe a)
+    default send :: (Show a, forall x. Ord (r x), Typeable r, Typeable a, MonadTrans t, m ~ t n, MonadReq r n) => r a -> m (Maybe a)
     send = lift . send
 instance MonadReq r m => MonadReq r (MaybeT m)
 
@@ -36,19 +38,32 @@ data Boxed where
     Boxed :: (Show a, Typeable a) => a -> Boxed
 instance Show Boxed where
     show (Boxed x) = "Boxed " <> show x
-data AsyncRequests r = AR (M.Map (Exists r) ReqState) (forall a. r a -> IO a)
+data AsyncRequests r = AR { cache :: (MVar (M.Map (Exists r) (ReqState))), process ::  (forall a. r a -> IO a), onFinish :: (forall a. r a -> IO ()) }
 
 
--- | Add a request to the map
-addRequest :: (forall x. Ord (r x), Typeable a, Typeable r) => r a -> AsyncRequests r -> AsyncRequests r
-addRequest r (AR m k) = AR (M.insert (Exists r) InProgress m) k
+type Cache r = (AsyncRequests r)
 
--- | Mark a request as done
-doneRequest :: (Show a, forall x. Ord (r x), Typeable a, Typeable r) => r a -> a -> AsyncRequests r -> AsyncRequests r
-doneRequest r a (AR m k) = AR (M.insert (Exists r) (Done $ Boxed a) m) k
 
--- | Mark a request as failed
-failedRequest :: (forall x. Ord (r x), Typeable a, Typeable r) => r a -> AsyncRequests r -> AsyncRequests r
-failedRequest r (AR m k) = AR (M.insert (Exists r) Failed m) k
+newtype Caching r m a = Caching { runCaching :: ReaderT (Cache r) m a }
+    deriving (Functor, Applicative, Monad, MonadIO, MonadTrans)
 
-type Cache r = MVar (AsyncRequests r)
+sendRequest :: (MonadIO m, Typeable a, Typeable r, Show a, forall x. Ord (r x)) => r a -> Caching r m (Maybe a)
+sendRequest r = do
+    s <- Caching ask
+    m <- liftIO $ readMVar (cache s)
+
+    case M.lookup (Exists r) m of
+        Just InProgress -> return Nothing
+        Just (Done (Boxed a)) -> pure (cast a)
+        Just Failed -> return Nothing
+        Nothing -> liftIO $ do
+            modifyMVar_ (cache s) $ \m -> return $ M.insert (Exists r) InProgress m
+            forkFinally (process s r) $ \res -> do
+                modifyMVar_ (cache s) $ \m -> return $ case res of
+                    Left _ -> M.insert (Exists r) Failed m
+                    Right a -> M.insert (Exists r) (Done (Boxed a)) m
+                onFinish s r
+            return Nothing
+
+instance (MonadIO m) => MonadReq r (Caching r m) where
+   send = sendRequest
