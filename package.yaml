@@ -35,6 +35,7 @@ dependencies:
 - microlens-ghc
 - ghc-prim
 - megaparsec
+- pretty-simple
 
 ghc-options:
 - -Wall
@@ -46,8 +47,9 @@ ghc-options:
 - -Wmissing-home-modules
 - -Wpartial-fields
 - -Wredundant-constraints
-- -O0
+- -O2
 - -finfo-table-map
+- -fdistinct-constructor-tables
 - -XGHC2021
 
 library:

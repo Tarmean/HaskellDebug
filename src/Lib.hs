@@ -1,9 +1,9 @@
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-uniques -fforce-recomp -O0 #-}
-{-# OPTIONS_GHC -O0 #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-uniques -fforce-recomp #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Lib
     ( someFunc
+
     ) where
 import GHC.IO (unsafePerformIO)
 import GHC.HeapView (ppHeapGraph, buildHeapGraph, asBox)
@@ -18,18 +18,28 @@ import UI
 
 someFunc :: IO ()
 someFunc = do
-   let x = foo [1,5,8,9,12]
-   print =<< whereFrom x
-   hg <- buildHeapGraph 10 () $ asBox x 
-   print $ ppHeapGraph hg
-   printValue $ x
+   let 
+     {-# NOINLINE as #-}
+     as = [1,2,4]
+     {-# NOINLINE xs #-}
+     !xs = foo . filter even  $ as
+   x <- printValue' xs
+   -- print =<< whereFrom x
+   -- hg <- buildHeapGraph 10 () $ asBox x 
+   -- print $ ppHeapGraph hg
+   print x
 
 
 
-foo :: [Integer] -> Integer
-foo = foldr step 0 
-  where
-    step a b = (a + b)
+{-# NOINLINE foo #-}
+foo :: [Int] -> [Int]
+foo ls =   scanl (+) 0 (map (*2) ls)
+
+
+printValue' :: b -> IO b
+printValue' a = do
+    printValue a
+    pure a
 
 
 -- debug :: a -> a

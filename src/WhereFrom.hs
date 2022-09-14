@@ -11,8 +11,11 @@ import qualified Text.Megaparsec as P
 import Data.Void
 mkFrom :: Box -> IO From
 mkFrom (Box a) = do
-    [ipName, ipDesc, ipTyDesc, ipLabel, ipMod, loc] <- map T.pack <$> Stack.whereFrom a
-    pure From {ipLoc = parseLocation loc, ..}
+    ls <- map T.pack <$> Stack.whereFrom a
+    case ls of
+        [ipName, ipDesc, ipTyDesc, ipLabel, ipMod, loc] -> pure From {ipLoc = parseLocation loc, ..}
+        [] -> pure $ From "?" "?" "?" "?" "" Nothing
+        o -> error ("mkFrom: " ++ show o)
 
 data Location = Location {
    lFile :: T.Text,
@@ -39,17 +42,21 @@ pLocation :: Parser Location
 pLocation = do
     file <- P.takeWhile1P (Just "FilePath") (/= ':')
     _ <- char ':'
-    (l,r) <- try pLoc1 <|> pLoc2
+    (l,r) <- try pLoc1 <|> try pLoc2 <|> pLoc3
     pure $ Location file l r
   where
     pLoc1 = do
+        _ <- char '('
         startLine <- pNum
-        _ <- char ':'
+        _ <- char ','
         startCol <- pNum
+        _ <- char ')'
         _ <- char '-'
+        _ <- char '('
         endLine <- pNum
-        _ <- char ':'
+        _ <- char ','
         endCol <- pNum
+        _ <- char ')'
         pure ((startLine, startCol), (endLine, endCol))
     pLoc2 = do
         startLine <- pNum
@@ -58,6 +65,11 @@ pLocation = do
         _ <- char '-'
         endCol <- pNum
         pure ((startLine, startCol), (startLine, endCol))
+    pLoc3 = do
+        startLine <- pNum
+        _ <- char ':'
+        startCol <- pNum
+        pure ((startLine, startCol), (startLine, startCol))
 
 parseLocation :: T.Text -> Maybe Location
 parseLocation a 

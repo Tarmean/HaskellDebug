@@ -15,15 +15,16 @@ import Lens.Micro.TH ( makeLenses )
 import qualified Data.Text.IO as T
 import Debug.Trace (traceM)
 import Control.Monad.Trans (MonadIO)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 
 
 lookupCurrentNode :: CoreState -> Maybe (Heap.HeapGraphEntry From)
-lookupCurrentNode CoreState { _heapGraph = g, _activeNode = x@(_:_) } = Heap.lookupHeapGraph (last x) g
-lookupCurrentNode _ = Nothing
+lookupCurrentNode CoreState { _heapGraph = g, _activeNode = x } = Heap.lookupHeapGraph (NE.head x) g
 
 data CoreState = CoreState {
   _heapGraph :: Heap.HeapGraph From,
-  _activeNode :: [Heap.HeapGraphIndex]
+  _activeNode :: NonEmpty Heap.HeapGraphIndex
 } deriving (Show)
 data RenderState = RenderState {
     _fileContent :: Maybe (V.Vector T.Text),

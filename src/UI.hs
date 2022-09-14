@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 module UI where
 
 import Brick
@@ -23,12 +24,17 @@ import qualified Graphics.Vty.Input as Inp
 import Brick.Widgets.Border
 import GHC.Stack.CCS as Stack
 import State
-import HeapUtils (traverseHeapGraph, traverseHeapEntry)
+import HeapUtils (traverseHeapGraph, traverseHeapEntry, childrenOf)
 import WhereFrom (mkFrom, From (From, ipLoc), Location (..))
 import AsyncRequests (runCachingT, mkCache)
 import Brick.BChan (BChan, newBChan)
 import Graphics.Vty (mkVty)
 import Graphics.Vty.Config (defaultConfig)
+import qualified Data.List.NonEmpty as NE
+import Data.Maybe (fromMaybe)
+import Data.List (elemIndex)
+import Text.Pretty.Simple (pPrint)
+import qualified Data.List as L
 
 
 type Label = ()
@@ -70,9 +76,22 @@ type Label = ()
 rHeap :: HeapGraph a -> Widget l
 rHeap h = border $ str (ppHeapGraph h)
 
+wrapping :: Int -> String -> String
+wrapping i = unlines . chunksOf . words
+  where
+    addLen ls = zip (scanl (+) 0 (map length ls)) ls
+
+    chunksOf :: [String] -> [String]
+    chunksOf [] = []
+    chunksOf xs = unwords (map snd l) : chunksOf (map snd r)
+      where (l,r) = L.span ((<= i) . fst) (addLen xs)
+
 rFile :: AppState -> Widget l
 rFile AppState { _renderState = RenderState { _fileContent = Just vs, _fileImportant = Just From{ipLoc = Just WhereFrom.Location{lStart=(l,_), lEnd=(r,_)}}} } = border $  vBox $ map (str . T.unpack) . V.toList $  slicing l r vs
-rFile s = emptyWidget -- border $ str ("No file loaded " <> show (_runAsync s))
+rFile s = border $ str ("? " <> show active <> ":\n" <> wrapping 70 (show node))
+  where
+     active = s ^. coreState . activeNode  . to NE.head
+     node = s ^. coreState . heapGraph . to (Heap.lookupHeapGraph active)
 
 slicing :: Int -> Int -> V.Vector a -> V.Vector a
 slicing l r = V.take (r-l+3) . V.drop (l-2) 
@@ -83,6 +102,10 @@ app = App {
   appChooseCursor = neverShowCursor,
   appHandleEvent = \e -> do
      case e of
+      VtyEvent (Inp.EvKey (Inp.KChar 'l') []) -> moveToChild
+      VtyEvent (Inp.EvKey (Inp.KChar 'j') []) -> moveToSibling 1
+      VtyEvent (Inp.EvKey (Inp.KChar 'k') []) -> moveToSibling (-1)
+      VtyEvent (Inp.EvKey (Inp.KChar 'h') []) -> moveToParent
       VtyEvent (Inp.EvKey Inp.KEsc []) -> halt
       _ -> pure ()
      s <- get
@@ -91,6 +114,32 @@ app = App {
   appStartEvent = return (),
   appAttrMap = const $ attrMap defAttr []
   }
+
+moveToParent :: EventM l AppState ()
+moveToParent = do
+  s <- get
+  case (s ^. coreState . activeNode) of
+       _ NE.:| (y : ys) -> coreState . activeNode .= y NE.:| ys
+       _ -> error "no"
+moveToChild :: EventM l AppState ()
+moveToChild = do
+  s <- get
+  let candidates = childrenOf (NE.head (s ^. coreState . activeNode)) (s^. coreState . heapGraph)
+  case candidates of
+       [] -> pure ()
+       x:_ -> coreState .  activeNode .=  x `NE.cons` (s ^. coreState . activeNode)
+moveToSibling :: Int -> EventM l AppState ()
+moveToSibling i = do
+  s <- get
+  case (s ^. coreState . activeNode) of
+    c NE.:| y:xs -> do
+      let candidates = childrenOf y (s^. coreState . heapGraph)
+          pos  = fromMaybe 0 $ elemIndex c candidates
+          pos'  = pos + i
+      if pos' >= 0 && pos' < length candidates
+        then coreState .  activeNode .=  (candidates !! pos') `NE.cons` (y NE.:| xs)
+        else pure ()
+    _ -> pure ()
 defaultMainChan :: (Ord n)
             => App s e n
             -- ^ The application.
@@ -108,7 +157,8 @@ printValue a = do
   cache <- mkCache runRequest (\_ -> pure ())
   hg <- liftIO (buildHeapGraph 10 () (asBox a))
   hg <- liftIO $ traverseHeapGraph (\he ->  mkFrom (Heap.hgeBox he) <&> \dat -> he {Heap.hgeData = dat}) hg
-  let core = CoreState hg [0]
+  pPrint hg
+  let core = CoreState hg (0 NE.:| [])
   render <- loadRenderState core cache
   let s = AppState core render cache
   chan <- liftIO (newBChan 8)
