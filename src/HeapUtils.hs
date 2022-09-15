@@ -1,4 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ApplicativeDo #-}
 module HeapUtils where
 
 import GHC.HeapView
@@ -9,11 +11,15 @@ import Data.Maybe (catMaybes)
 import State (HeapData)
 import qualified Data.Text as T
 import qualified Data.IntMap as M
-import Data.List (groupBy, sortBy, intercalate, sort, group)
+import qualified Data.List as L
 import Data.Function (on)
 import qualified GHC.HeapView as Heap
 import Control.Monad ((<=<))
 import GHC.HeapView.Debug (isChar, isCons)
+import Prettyprinter
+import Graphics.Vty.Attributes (Attr)
+import Data.String
+import Data.Functor.Identity
 
 
 traverseHeapGraph :: Applicative m => (HeapGraphEntry a -> m (HeapGraphEntry b)) -> HeapGraph a -> m (HeapGraph b)
@@ -29,20 +35,21 @@ childrenOf i hg = case lookupHeapGraph i hg of
   Nothing -> []
   Just hge -> catMaybes $ F.toList (hgeClosure hge)
 
-ppHeapGraphEntry :: (Int -> Maybe Int -> String) -> Int ->  HeapGraphEntry HeapData -> String
+ppHeapGraphEntry :: (Int -> Maybe Int -> Doc Attr) -> Int ->  HeapGraphEntry HeapData -> Doc Attr
 ppHeapGraphEntry pBox prec hge = case hgeClosure hge of
       ThunkClosure {..} 
-        | (Just From {ipName = nam}, _) <- hgeData hge-> app $ T.unpack nam : map (pBox 10) ptrArgs ++ map show dataArgs
+        | (Just From {ipName = nam}, _) <- hgeData hge-> app $ pretty nam : map (pBox 10) ptrArgs <> map pretty dataArgs
       FunClosure {..} 
-        | (Just From {ipName = nam}, _) <- hgeData hge-> app $ T.unpack nam : map (pBox 10) ptrArgs ++ map show dataArgs
-      cls -> ppClosure pBox prec cls
+        | (Just From {ipName = nam}, _) <- hgeData hge-> app $ pretty nam : map (pBox 10) ptrArgs <> map pretty dataArgs
+      cls -> ppClosureDoc pBox prec cls
   where
-    app [a] = a  ++ "()"
-    app xs = addBraces (10 <= prec) (intercalate " " xs)
+    app [a] = a  <> "()"
+    app xs = addBraces (10 <= prec) (align $ sep xs)
 
-    shorten xs = if length xs > 20 then take 20 xs ++ ["(and more)"] else xs
-ppHeapGraph' :: HeapGraph HeapData -> String
-ppHeapGraph' (HeapGraph m) = letWrapper ++ ppRef 0 (Just heapGraphRoot)
+    shorten xs = if length xs > 20 then take 20 xs <> ["(and more)"] else xs
+
+ppHeapGraph' :: HeapGraph HeapData -> Doc Attr
+ppHeapGraph' (HeapGraph m) = letWrapper <> ppRef 0 (Just heapGraphRoot)
   where
     -- All variables occuring more than once
     bindings = boundMultipleTimes (HeapGraph m) [heapGraphRoot]
@@ -50,7 +57,7 @@ ppHeapGraph' (HeapGraph m) = letWrapper ++ ppRef 0 (Just heapGraphRoot)
     letWrapper =
         if null bindings
         then ""
-        else "let " ++ intercalate "\n    " (map ppBinding bindings) ++ "\nin "
+        else "let " <> align (hsep (map ppBinding bindings)) <> line <> "in "
 
     bindingLetter i = case hgeClosure (iToE i) of
         ThunkClosure {} -> 't'
@@ -63,28 +70,30 @@ ppHeapGraph' (HeapGraph m) = letWrapper ++ ppRef 0 (Just heapGraphRoot)
 
     ppBindingMap = M.fromList $
         concat $
-        map (zipWith (\j (i,c) -> (i, [c] ++ show j)) [(1::Int)..]) $
-        groupBy ((==) `on` snd) $
-        sortBy (compare `on` snd)
+        map (zipWith (\j (i,c) -> (i, [c] <> show j)) [(1::Int)..]) $
+        L.groupBy ((==) `on` snd) $
+        L.sortBy (compare `on` snd)
         [ (i, bindingLetter i) | i <- bindings ]
 
     ppVar i = ppBindingMap M.! i
-    ppBinding i = ppVar i ++ " = " ++ ppEntry 0 (iToE i)
+    ppBinding :: Int -> Doc Attr
+    ppBinding i = pretty (ppVar i) <> " = " <> ppEntry 0 (iToE i)
 
-    ppEntry :: Int -> Heap.HeapGraphEntry HeapData -> String
+
+    ppEntry :: Int -> Heap.HeapGraphEntry HeapData -> Doc Attr
     ppEntry prec hge
-        | Just s <- isString hge = show s
-        | Just l <- isList hge   = "[" ++ intercalate "," (map (ppRef 0) l) ++ "]"
+        | Just s <- isString hge = pretty $ show s
+        | Just l <- isList hge   = list (map (ppRef 0) l)
         | Just bc <- disassembleBCO (fmap (hgeClosure . iToE)) (hgeClosure hge)
                                        = app ("_bco" : map (ppRef 10) (concatMap F.toList bc))
         | otherwise =  ppHeapGraphEntry ppRef prec hge
       where
-        app [a] = a  ++ "()"
-        app xs = addBraces (10 <= prec) (intercalate " " xs)
+        app [a] = a  <> "()"
+        app xs = addBraces (10 <= prec) (align $ sep xs)
 
-    ppRef :: Int -> Maybe HeapGraphIndex -> String
+    ppRef :: Int -> Maybe HeapGraphIndex -> Doc Attr
     ppRef _ Nothing = "..."
-    ppRef prec (Just i) | i `elem` bindings = ppVar i
+    ppRef prec (Just i) | i `elem` bindings = pretty (ppVar i)
                         | otherwise = ppEntry prec (iToE i)
     iToE i = m M.! i
 
@@ -103,22 +112,110 @@ ppHeapGraph' (HeapGraph m) = letWrapper ++ ppRef 0 (Just heapGraphRoot)
 
     isString :: HeapGraphEntry a -> Maybe String
     isString e = do
-        list <- isList e
+        ls <- isList e
         -- We do not want to print empty lists as "" as we do not know that they
         -- are really strings.
-        if (null list)
+        if (null ls)
             then Nothing
-            else mapM (isChar . hgeClosure <=< iToUnboundE <=< id) list
+            else mapM (isChar . hgeClosure <=< iToUnboundE <=< id) ls
 
+class Applicative m => PrintClosure f m where
+      pClos :: Int -> f -> m (Doc Attr)
+instance (PrintClosure b m) => PrintClosure (GenClosure b) m where
+      pClos  i v = ppClosureDoc' pClos i v
 isNil :: GenClosure b -> Bool
 isNil (ConstrClosure { name = "[]", dataArgs = [], ptrArgs = []}) = True
 isNil _ = False
 
-addBraces :: Bool -> String -> String
-addBraces True t = "(" ++ t ++ ")"
+addBraces :: (Monoid s, IsString s) => Bool -> s -> s
+addBraces True t = "(" <> t <> ")"
 addBraces False t = t
 -- | In the given HeapMap, list all indices that are used more than once. The
 -- second parameter adds external references, commonly @[heapGraphRoot]@.
 boundMultipleTimes :: HeapGraph a -> [HeapGraphIndex] -> [HeapGraphIndex]
-boundMultipleTimes (HeapGraph m) roots = map head $ filter (not.null) $ map tail $ group $ sort $
-     roots ++ concatMap (catMaybes . allClosures . hgeClosure) (M.elems m)
+boundMultipleTimes (HeapGraph m) roots = map head $ filter (not.null) $ map tail $ L.group $ L.sort $
+     roots <> concatMap (catMaybes . allClosures . hgeClosure) (M.elems m)
+
+ppClosureDoc :: (Int -> t -> Doc Attr) -> Int -> GenClosure t -> Doc Attr
+ppClosureDoc f b c = runIdentity (ppClosureDoc' (\x y -> Identity (f x y)) b c)
+
+ppClosureDoc' :: Applicative m => (Int -> b -> m (Doc Attr)) -> Int -> GenClosure b -> m (Doc Attr)
+ppClosureDoc' showBox prec c = case c of
+    _ | Just ch <- isChar c -> pure $ app ["C#", pretty ch]
+    _ | Just (h,t) <- isCons c -> addBraces (5 <= prec) <$> do
+        l <- showBox 5 h 
+        r <- showBox 4 t
+        pure $ l <> " : " <> r 
+    _ | Just vs <- isTup c ->
+        fmap tupled (traverse (showBox 1) vs)
+    ConstrClosure {..} -> do
+      ptrs <- traverse (showBox 10) ptrArgs
+      pure $ app $ pretty name : ptrs <> map pretty dataArgs
+    ThunkClosure {..} -> do
+       
+        ptrs <- traverse (showBox 10) ptrArgs
+        pure $ app $ "_thunk" : ptrs <> map pretty dataArgs
+    SelectorClosure {..} -> appBox "_sel" selectee
+    IndClosure {..} -> appBox "_ind" indirectee
+    BlackholeClosure {..} -> appBox "_bh" indirectee
+    APClosure {..} -> fmap app (traverse (showBox 10) (fun : payload))
+    PAPClosure {..} -> fmap app (traverse (showBox 10) (fun : payload))
+    APStackClosure {..} -> fmap app (traverse (showBox 10) (fun : payload))
+    BCOClosure {..} -> appBox "_bco" bcoptrs
+    ArrWordsClosure {..} -> pure $ app
+        ["toArray", "("<>pretty (length arrWords) <> " words)", sep $ punctuate comma (shorten (map pretty arrWords)) ]
+    MutArrClosure {..} -> do
+        payload <- traverse (showBox 10) mccPayload
+        --["toMutArray", "("<>show (length mccPayload) <> " ptrs)",  L.intercalate "," (shorten (map (showBox 10) mccPayload))]
+        pure $ list (shorten payload)
+    MutVarClosure {..} -> appBox "_mutVar" var
+    MVarClosure {..} ->  appBox "MVar" value
+    FunClosure {..} -> do
+        ptrs <- traverse (showBox 0) ptrArgs
+        pure $ "_fun" <> braceize (ptrs <> map pretty dataArgs)
+    BlockingQueueClosure {..} -> pure "_blockingQueue"
+    IntClosure {..} -> pure $ app ["Int", pretty intVal]
+    WordClosure {..} -> pure $ app
+        ["Word", pretty wordVal]
+    Int64Closure {..} -> pure $ app
+        ["Int64", pretty int64Val]
+    Word64Closure {..} -> pure $ app
+        ["Word64", pretty word64Val]
+    AddrClosure {..} -> pure $ app
+        ["Addr", pretty addrVal]
+    FloatClosure {..} -> pure $ app
+        ["Float", pretty floatVal]
+    DoubleClosure {..} -> pure $ app
+        ["Double", pretty doubleVal]
+    OtherClosure {..} ->
+        pure "_other"
+    UnsupportedClosure {..} ->
+        pure "_unsupported closure"
+    -- copy-pasta'd from MutArrClosure:
+    SmallMutArrClosure {..} -> do
+        --["toMutArray", "("<>show (length mccPayload) <> " ptrs)",  intercalate "," (shorten (map (showBox 10) mccPayload))]
+        payload <- traverse (showBox 10) mccPayload
+        pure $ list $ (shorten payload)
+    WeakClosure {..} -> pure "_weak"
+    IOPortClosure {} -> pure "_ioPortClosure"
+    TSOClosure {} -> pure "_tsoClosure"
+    StackClosure{} -> pure "_stackClosure"
+  where
+    appBox str sel = do
+        s <- showBox 10 sel
+        pure $ app [str, s]
+    app [a] = a  <> "()"
+    app xs = addBraces (10 <= prec) (sep xs)
+
+    shorten xs = if length xs > 20 then take 20 xs <> ["(and more)"] else xs
+
+braceize :: [Doc a] -> Doc a
+braceize [] = ""
+braceize xs = braces $  hsep $ punctuate comma xs 
+isTup :: GenClosure b -> Maybe [b]
+isTup (ConstrClosure { dataArgs = [], ..}) =
+    if length name >= 3 &&
+       head name == '(' && last name == ')' &&
+       all (==',') (tail (init name))
+    then Just ptrArgs else Nothing
+isTup _ = Nothing

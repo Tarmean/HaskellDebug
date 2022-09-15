@@ -36,6 +36,7 @@ import Data.List (elemIndex)
 import Text.Pretty.Simple (pPrint)
 import qualified Data.List as L
 import Control.Applicative (Applicative(liftA2))
+import qualified PrettyprinterVty as PPVty
 
 
 type Label = ()
@@ -75,7 +76,7 @@ type Label = ()
 -- readT = read . T.unpack
 
 rHeap :: HeapGraph HeapData -> Widget l
-rHeap h = border $ str (ppHeapGraph' h)
+rHeap h = border $ raw $ PPVty.render (ppHeapGraph' h)
 
 wrapping :: Int -> String -> String
 wrapping i = unlines . chunksOf . words

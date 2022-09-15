@@ -28,6 +28,7 @@ library
       AsyncRequests
       HeapUtils
       Lib
+      PrettyprinterVty
       State
       UI
       WhereFrom
@@ -49,6 +50,7 @@ library
     , microlens-th
     , mtl
     , pretty-simple
+    , prettyprinter
     , text
     , transformers
     , vector
@@ -76,6 +78,7 @@ executable HaskellDebug-exe
     , microlens-th
     , mtl
     , pretty-simple
+    , prettyprinter
     , text
     , transformers
     , vector
@@ -104,6 +107,7 @@ test-suite HaskellDebug-test
     , microlens-th
     , mtl
     , pretty-simple
+    , prettyprinter
     , text
     , transformers
     , vector

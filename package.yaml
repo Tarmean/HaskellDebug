@@ -36,6 +36,7 @@ dependencies:
 - ghc-prim
 - megaparsec
 - pretty-simple
+- prettyprinter
 
 ghc-options:
 - -Wall
