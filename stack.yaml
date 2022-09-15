@@ -20,6 +20,9 @@
 resolver:
   url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2022/4/28.yaml
 
+ghc-options:
+    "$everything": -finfo-table-map -g3
+
 # User packages to be built.
 # Various formats can be used as shown in the example below.
 #
@@ -37,7 +40,8 @@ packages:
 #
 extra-deps:
 
-- ghc-heap-view-0.6.3@sha256:cab6eac485c7c7e908a207b74017ad18776ede91c72cad3a4295fc452048f48c,3193
+- git: https://github.com/Tarmean/ghc-heap-view
+  commit: ec7fa0cb31f57cf558fcc462e048941f0aec08da
 - brick-1.1@sha256:a4d13f2ae42acb61bb9850033181059e0cd0ed34ded39154f72cdbc7d083dc0b,17828
 - bimap-0.5.0@sha256:aba506d02a1c93fc2b50dcbe728d2a4d07cca89b7033945418061a0b08576ebd,1889
 - text-zipper-0.12@sha256:e96110598fc25e57a99ffcd8e583351af8b325b813aa5e3bd0adc627e3e02b6b,1472

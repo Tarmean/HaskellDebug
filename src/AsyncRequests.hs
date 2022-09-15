@@ -70,12 +70,13 @@ sendRequest r = do
         Just Failed -> return Nothing
         Nothing -> liftIO $ do
             modifyMVar_ (cache s) $ \m' -> return $ M.insert (Exists r) InProgress m'
-            _tid <- forkFinally (process s r) $ \res -> do
-                modifyMVar_ (cache s) $ \m' -> return $ case res of
-                    Left _ -> M.insert (Exists r) Failed m'
-                    Right a -> M.insert (Exists r) (Done (Boxed a)) m'
-                onFinish s r
-            return Nothing
+            -- _tid <- forkFinally (process s r) $ \res -> do
+            res <- process s r
+            modifyMVar_ (cache s) $ \m' -> return $ 
+                -- Left _ -> M.insert (Exists r) Failed m'
+                M.insert (Exists r) (Done (Boxed res)) m'
+            onFinish s r
+            return (Just res)
 
 instance (MonadIO m) => MonadReq r (Caching r m) where
    send = sendRequest

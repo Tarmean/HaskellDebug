@@ -8,7 +8,7 @@ module UI where
 
 import Brick
 import Brick.Main
-import GHC.HeapView (HeapGraph, ppHeapGraph, buildHeapGraph, asBox)
+import GHC.HeapView (HeapGraph, buildHeapGraph, asBox)
 import qualified GHC.HeapView as Heap
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
@@ -24,17 +24,18 @@ import qualified Graphics.Vty.Input as Inp
 import Brick.Widgets.Border
 import GHC.Stack.CCS as Stack
 import State
-import HeapUtils (traverseHeapGraph, traverseHeapEntry, childrenOf)
+import HeapUtils (traverseHeapGraph, traverseHeapEntry, childrenOf, ppHeapGraph')
 import WhereFrom (mkFrom, From (From, ipLoc), Location (..))
 import AsyncRequests (runCachingT, mkCache)
 import Brick.BChan (BChan, newBChan)
 import Graphics.Vty (mkVty)
 import Graphics.Vty.Config (defaultConfig)
 import qualified Data.List.NonEmpty as NE
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, fromJust)
 import Data.List (elemIndex)
 import Text.Pretty.Simple (pPrint)
 import qualified Data.List as L
+import Control.Applicative (Applicative(liftA2))
 
 
 type Label = ()
@@ -73,8 +74,8 @@ type Label = ()
 -- readT :: T.Text -> Int
 -- readT = read . T.unpack
 
-rHeap :: HeapGraph a -> Widget l
-rHeap h = border $ str (ppHeapGraph h)
+rHeap :: HeapGraph HeapData -> Widget l
+rHeap h = border $ str (ppHeapGraph' h)
 
 wrapping :: Int -> String -> String
 wrapping i = unlines . chunksOf . words
@@ -88,17 +89,29 @@ wrapping i = unlines . chunksOf . words
 
 rFile :: AppState -> Widget l
 rFile AppState { _renderState = RenderState { _fileContent = Just vs, _fileImportant = Just From{ipLoc = Just WhereFrom.Location{lStart=(l,_), lEnd=(r,_)}}} } = border $  vBox $ map (str . T.unpack) . V.toList $  slicing l r vs
-rFile s = border $ str ("? " <> show active <> ":\n" <> wrapping 70 (show node))
+rFile s = border $ str ("? " <> show active <> ":\n" <> wrapping 70 snode)
   where
      active = s ^. coreState . activeNode  . to NE.head
      node = s ^. coreState . heapGraph . to (Heap.lookupHeapGraph active)
+     snode = case node of
+        Just hge -> Heap.ppClosure (\_ a -> sRef a) 10 (Heap.hgeClosure hge)
+        _ -> show node
+     sRef Nothing = "..."
+     sRef (Just i) = "*" <> show i
+rWhoCreated :: AppState -> Widget l
+rWhoCreated s = case node of
+    Nothing -> border (str "No who Created")
+    Just xs -> border $  vBox $ map str $ xs
+  where
+     active = s ^. coreState . activeNode  . to NE.head
+     node = s ^? coreState . heapGraph . to (Heap.lookupHeapGraph active) . _Just . to Heap.hgeData . _2
 
 slicing :: Int -> Int -> V.Vector a -> V.Vector a
 slicing l r = V.take (r-l+3) . V.drop (l-2) 
 
 app :: App AppState e l
 app = App {
-  appDraw = \s -> [rHeap (s^. coreState . heapGraph) <=> rFile s],
+  appDraw = \s -> [rHeap (s^. coreState . heapGraph) <=> rFile s <=> rWhoCreated s],
   appChooseCursor = neverShowCursor,
   appHandleEvent = \e -> do
      case e of
@@ -106,6 +119,7 @@ app = App {
       VtyEvent (Inp.EvKey (Inp.KChar 'j') []) -> moveToSibling 1
       VtyEvent (Inp.EvKey (Inp.KChar 'k') []) -> moveToSibling (-1)
       VtyEvent (Inp.EvKey (Inp.KChar 'h') []) -> moveToParent
+      VtyEvent (Inp.EvKey (Inp.KChar 'r') []) -> forceAndReload
       VtyEvent (Inp.EvKey Inp.KEsc []) -> halt
       _ -> pure ()
      s <- get
@@ -128,6 +142,20 @@ moveToChild = do
   case candidates of
        [] -> pure ()
        x:_ -> coreState .  activeNode .=  x `NE.cons` (s ^. coreState . activeNode)
+
+forceAndReload :: EventM l AppState ()
+forceAndReload = do
+      s <- get
+      let hge = s ^. coreState . heapGraph . to (Heap.lookupHeapGraph (NE.head (s ^. coreState . activeNode)))
+      case hge of
+          Nothing -> pure ()
+          Just (Heap.HeapGraphEntry { Heap.hgeBox = (Heap.Box b)}) -> do
+               b `seq` pure ()
+               let rootBox = Heap.hgeBox $ fromJust $ Heap.lookupHeapGraph 0 (s ^. coreState . heapGraph)
+               cr <- liftIO (mkCoreState rootBox)
+               coreState . heapGraph .= cr
+
+
 moveToSibling :: Int -> EventM l AppState ()
 moveToSibling i = do
   s <- get
@@ -152,11 +180,17 @@ defaultMainChan app st chan = do
     let builder = mkVty defaultConfig
     initialVty <- builder
     customMain initialVty builder (Just chan) app st
+
+mkCoreState :: Heap.Box -> IO (HeapGraph HeapData)
+mkCoreState b = do
+  hg <- liftIO (buildHeapGraph 10 () b)
+  let mk1 he = liftA2 (,) (mkFrom (Heap.hgeBox he)) (case Heap.hgeBox he of Heap.Box e -> whoCreated e)
+  hg <- liftIO $ traverseHeapGraph (\he -> mk1 he <&> \dat -> he {Heap.hgeData = dat}) hg
+  pure hg
 printValue :: a -> IO ()
 printValue a = do
   cache <- mkCache runRequest (\_ -> pure ())
-  hg <- liftIO (buildHeapGraph 10 () (asBox a))
-  hg <- liftIO $ traverseHeapGraph (\he ->  mkFrom (Heap.hgeBox he) <&> \dat -> he {Heap.hgeData = dat}) hg
+  hg <- mkCoreState (Heap.asBox a)
   pPrint hg
   let core = CoreState hg (0 NE.:| [])
   render <- loadRenderState core cache

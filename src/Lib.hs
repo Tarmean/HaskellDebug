@@ -5,24 +5,16 @@ module Lib
     ( someFunc
 
     ) where
-import GHC.IO (unsafePerformIO)
-import GHC.HeapView (ppHeapGraph, buildHeapGraph, asBox)
-import GHC.Stack.CCS (whereFrom)
-import Data.IORef (IORef, readIORef, writeIORef, newIORef)
-import qualified Data.Map.Strict as M
-import qualified Data.Text.IO as T
-import qualified Data.Text as T
-import qualified Data.Vector as V
 
-import UI
+import UI ( printValue )
 
 someFunc :: IO ()
 someFunc = do
    let 
      {-# NOINLINE as #-}
-     as = [1,2,4]
+     as = [1..10]
      {-# NOINLINE xs #-}
-     !xs = foo . filter even  $ as
+     xs = foo . filter even  $ as
    x <- printValue' xs
    -- print =<< whereFrom x
    -- hg <- buildHeapGraph 10 () $ asBox x 
@@ -33,7 +25,7 @@ someFunc = do
 
 {-# NOINLINE foo #-}
 foo :: [Int] -> [Int]
-foo ls =   scanl (+) 0 (map (*2) ls)
+foo ls =  scanl (+) 0 (map (*2) ls)
 
 
 printValue' :: b -> IO b

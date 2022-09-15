@@ -19,11 +19,12 @@ import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
 
-lookupCurrentNode :: CoreState -> Maybe (Heap.HeapGraphEntry From)
+lookupCurrentNode :: CoreState -> Maybe (Heap.HeapGraphEntry HeapData)
 lookupCurrentNode CoreState { _heapGraph = g, _activeNode = x } = Heap.lookupHeapGraph (NE.head x) g
 
+type HeapData = (Maybe From, [String])
 data CoreState = CoreState {
-  _heapGraph :: Heap.HeapGraph From,
+  _heapGraph :: Heap.HeapGraph HeapData,
   _activeNode :: NonEmpty Heap.HeapGraphIndex
 } deriving (Show)
 data RenderState = RenderState {
@@ -54,7 +55,7 @@ instance Ord (Requests a) where
 
 loadRenderState :: MonadIO m => CoreState -> Cache Requests -> m RenderState
 loadRenderState cs c = do
-    let from = Heap.hgeData <$> lookupCurrentNode cs 
+    let from = fst . Heap.hgeData =<< lookupCurrentNode cs 
     content <- runCachingT c $ with (fmap lFile . ipLoc =<< from) (\loc -> send (LoadFile loc))
     pure $ RenderState content from
 

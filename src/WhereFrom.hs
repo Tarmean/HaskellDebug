@@ -9,12 +9,12 @@ import Text.Megaparsec.Char (char)
 import Data.Char (isDigit)
 import qualified Text.Megaparsec as P
 import Data.Void
-mkFrom :: Box -> IO From
+mkFrom :: Box -> IO (Maybe From)
 mkFrom (Box a) = do
     ls <- map T.pack <$> Stack.whereFrom a
     case ls of
-        [ipName, ipDesc, ipTyDesc, ipLabel, ipMod, loc] -> pure From {ipLoc = parseLocation loc, ..}
-        [] -> pure $ From "?" "?" "?" "?" "" Nothing
+        [ipName, ipDesc, ipTyDesc, ipLabel, ipMod, loc] -> pure $ Just From {ipLoc = parseLocation loc, ..}
+        [] -> pure Nothing
         o -> error ("mkFrom: " ++ show o)
 
 data Location = Location {

@@ -5,12 +5,16 @@
 
 packages:
 - completed:
-    hackage: ghc-heap-view-0.6.3@sha256:cab6eac485c7c7e908a207b74017ad18776ede91c72cad3a4295fc452048f48c,3193
+    name: ghc-heap-view
+    version: 0.6.3
+    git: https://github.com/Tarmean/ghc-heap-view
     pantry-tree:
-      size: 547
-      sha256: 231fe659ea1850b908d108eac29a1f577caee3439b039b1996b05636e9ca2903
+      size: 705
+      sha256: 7aaa87e7fcc29d57bf84127189f75085b7edd53a22c302bb5a1b6668465cadb8
+    commit: ec7fa0cb31f57cf558fcc462e048941f0aec08da
   original:
-    hackage: ghc-heap-view-0.6.3@sha256:cab6eac485c7c7e908a207b74017ad18776ede91c72cad3a4295fc452048f48c,3193
+    git: https://github.com/Tarmean/ghc-heap-view
+    commit: ec7fa0cb31f57cf558fcc462e048941f0aec08da
 - completed:
     hackage: brick-1.1@sha256:a4d13f2ae42acb61bb9850033181059e0cd0ed34ded39154f72cdbc7d083dc0b,17828
     pantry-tree:

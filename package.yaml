@@ -50,6 +50,7 @@ ghc-options:
 - -O2
 - -finfo-table-map
 - -fdistinct-constructor-tables
+- -g3
 - -XGHC2021
 
 library:
