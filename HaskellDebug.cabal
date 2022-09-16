@@ -28,6 +28,7 @@ library
       AsyncRequests
       HeapUtils
       Lib
+      OOP
       PrettyprinterVty
       State
       UI

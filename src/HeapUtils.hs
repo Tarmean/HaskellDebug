@@ -1,6 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE UndecidableInstances #-}
 module HeapUtils where
 
 import GHC.HeapView
@@ -20,6 +23,8 @@ import Prettyprinter
 import Graphics.Vty.Attributes (Attr)
 import Data.String
 import Data.Functor.Identity
+import OOP
+import Control.Monad.State
 
 
 traverseHeapGraph :: Applicative m => (HeapGraphEntry a -> m (HeapGraphEntry b)) -> HeapGraph a -> m (HeapGraph b)
@@ -119,10 +124,17 @@ ppHeapGraph' (HeapGraph m) = letWrapper <> ppRef 0 (Just heapGraphRoot)
             then Nothing
             else mapM (isChar . hgeClosure <=< iToUnboundE <=< id) ls
 
-class Applicative m => PrintClosure f m where
-      pClos :: Int -> f -> m (Doc Attr)
-instance (PrintClosure b m) => PrintClosure (GenClosure b) m where
-      pClos  i v = ppClosureDoc' pClos i v
+class Applicative m => PrintClosure r t f m where
+      pClosImpl :: (?printBase :: Proxy# r, ?printLocal :: Proxy# t) => Int -> f -> m (Doc Attr)
+instance (PrintClosure r r b m) => PrintClosure r Base (GenClosure b) m where
+      pClosImpl  i v = ppClosureDoc' (\x y -> self (pClos x y)) i v
+instance (PrintClosure r r (HeapGraphEntry t) m, MonadState (HeapGraph t) m) => PrintClosure r Base HeapGraphIndex m where
+  pClosImpl = do
+        undefined -- ppHeapGraphEntry
+
+pClos :: forall t r f x m. (?printBase :: Proxy# r, PrintClosure r x f m) => Int -> f -> Dispatch t r x (m (Doc Attr))
+pClos a b = Dispatch (let ?printLocal = proxy# :: Proxy# x in pClosImpl a b)
+
 isNil :: GenClosure b -> Bool
 isNil (ConstrClosure { name = "[]", dataArgs = [], ptrArgs = []}) = True
 isNil _ = False
