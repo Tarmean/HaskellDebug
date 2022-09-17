@@ -1,5 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
+-- FIXME: this makes ghc hang
+-- {-# OPTIONS_GHC -fplugin GhcDump.Plugin #-}
 module WhereFrom where
 import GHC.Stack.CCS as Stack
 import qualified Data.Text as T

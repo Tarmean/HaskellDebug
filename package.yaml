@@ -54,7 +54,8 @@ ghc-options:
 - -fdistinct-constructor-tables
 - -g3
 - -XGHC2021
-- -fplugin GhcDump.Plugin
+- -dumpdir=dist-newstyle
+# - -fplugin GhcDump.Plugin
 
 library:
   source-dirs: src

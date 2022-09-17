@@ -1,6 +1,5 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 module State where
@@ -11,7 +10,7 @@ import qualified Data.Vector as V
 import qualified Data.Text as T
 import AsyncRequests ( MonadReq(..), Caching, AsyncRequests, Cache, runCachingT )
 import WhereFrom ( From(ipLoc), Location(lFile) )
-import Lens.Micro.TH ( makeLenses )
+import Lens.Micro ( Lens', lens )
 import qualified Data.Text.IO as T
 import Debug.Trace (traceM)
 import Control.Monad.Trans (MonadIO)
@@ -39,9 +38,20 @@ data AppState = AppState {
     _renderState :: RenderState,
     _runAsync :: AsyncRequests Requests
 }
-makeLenses ''CoreState
-makeLenses ''RenderState
-makeLenses ''AppState
+heapGraph :: Lens' CoreState (Heap.HeapGraph HeapData)
+heapGraph = lens _heapGraph (\s v -> s { _heapGraph = v })
+activeNode :: Lens' CoreState (NonEmpty Heap.HeapGraphIndex)
+activeNode = lens _activeNode (\s v -> s { _activeNode = v })
+fileContent :: Lens' RenderState (Maybe (V.Vector T.Text))
+fileContent = lens _fileContent (\s v -> s { _fileContent = v })
+fileImportant :: Lens' RenderState (Maybe From)
+fileImportant = lens _fileImportant (\s v -> s { _fileImportant = v })
+coreState :: Lens' AppState CoreState
+coreState = lens _coreState (\s v -> s { _coreState = v })
+renderState :: Lens' AppState RenderState
+renderState = lens _renderState (\s v -> s { _renderState = v })
+runAsync :: Lens' AppState (AsyncRequests Requests)
+runAsync = lens _runAsync (\s v -> s { _runAsync = v })
 
 
 runRequest :: Requests x -> IO x

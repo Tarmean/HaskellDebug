@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -ddump-simpl -dsuppress-uniques -fforce-recomp #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -fplugin GhcDump.Plugin #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Lib
     ( someFunc
