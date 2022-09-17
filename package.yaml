@@ -37,6 +37,7 @@ dependencies:
 - megaparsec
 - pretty-simple
 - prettyprinter
+- ghc-dump-core
 
 ghc-options:
 - -Wall
@@ -53,6 +54,7 @@ ghc-options:
 - -fdistinct-constructor-tables
 - -g3
 - -XGHC2021
+- -fplugin GhcDump.Plugin
 
 library:
   source-dirs: src

@@ -7,17 +7,20 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DeriveAnyClass #-}
 module HeapUtils where
 
 import GHC.HeapView
 import WhereFrom
 import Data.Functor ((<&>))
 import qualified Data.Foldable as F
-import Data.Maybe (catMaybes, fromJust)
+import Data.Maybe (catMaybes, fromJust, isJust)
 import State (HeapData)
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
-import qualified Data.List as L
 import GHC.HeapView.Debug (isChar, isCons)
 import Prettyprinter
 import Graphics.Vty.Attributes (Attr)
@@ -27,6 +30,11 @@ import OOP
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import Control.Applicative (Alternative(..))
+import Control.Monad.Reader
+import qualified Data.IntSet as IS
+import GHC.Stack (HasCallStack)
+import Debug.Trace
+import Data.Containers.ListUtils (nubOrd)
 
 
 traverseHeapGraph :: Applicative m => (HeapGraphEntry a -> m (HeapGraphEntry b)) -> HeapGraph a -> m (HeapGraph b)
@@ -51,22 +59,21 @@ instance (PrintClosure r r (Maybe HeapGraphIndex) m, PrintClosure r f (HeapGraph
       ThunkClosure {..} 
         | (Just From {ipName = nam}, _) <- hgeData hge-> do
             ptrs <-  traverse (self . pClos 10) ptrArgs
-            pure $ app $ pretty nam :ptrs <> map pretty dataArgs
+            pure $ app prec $ pretty nam :ptrs <> map pretty dataArgs
       FunClosure {..} 
         | (Just From {ipName = nam}, _) <- hgeData hge-> do
             ptrs <- traverse (self . pClos 10) ptrArgs
-            pure $ app $ pretty nam : ptrs <> map pretty dataArgs
+            pure $ app prec $ pretty nam : ptrs <> map pretty dataArgs
       _ -> super (pClos prec hge)
-     where
-        app [a] = a  <> "()"
-        app xs = addBraces (10 <= prec) (align $ sep xs)
 instance (PrintClosure r r (GenClosure (Maybe HeapGraphIndex)) m) =>  PrintClosure r Base (HeapGraphEntry HeapData) m where
      pClosImpl prec hge = self (pClos prec (hgeClosure hge))
 
 
-instance (MonadHeapPrint b m, PrintClosure r r (HeapGraphEntry b) m) => PrintClosure r Base (Maybe HeapGraphIndex) m where
+instance (PrintClosure r r x m) => PrintClosure r Base (Maybe x) m where
     pClosImpl _ Nothing = pure "..."
-    pClosImpl r (Just i) =  lookupHeapRep i >>= \case
+    pClosImpl r (Just i) =  self (pClos r i)
+instance (MonadHeapPrint b m, PrintClosure r r (HeapGraphEntry b) m) => PrintClosure r Base HeapGraphIndex m where
+    pClosImpl r i =  lookupHeapRep i >>= \case
         Left l -> pure $ pretty l
         Right e -> self $ pClos r e
 
@@ -83,10 +90,10 @@ instance (MonadHeapPrint b m, PrintClosure r r (Maybe HeapGraphIndex) m, PrintCl
                 Just l -> list <$> (traverse (self . pClos 0) l)
                 Nothing -> do
                     HeapGraph s <- getHeapContent
-                    case disassembleBCO (fmap (hgeClosure . (s IM.!))) (hgeClosure hge0) of
+                    case disassembleBCO (fmap (hgeClosure . (s !!!))) (hgeClosure hge0) of
                         Just bc -> do
                             o <- traverse (self . pClos 10) (concatMap F.toList bc)
-                            pure $ app ("_bco" : o) 
+                            pure $ app prec ("_bco" : o) 
                         Nothing -> super $ pClos prec hge0
         where
             liftMay :: Maybe a -> MaybeT m a
@@ -112,8 +119,6 @@ instance (MonadHeapPrint b m, PrintClosure r r (Maybe HeapGraphIndex) m, PrintCl
                 if (null ls)
                     then empty
                     else mapM (liftMay . isChar . hgeClosure <=< MaybeT . lookupHeapUnbound <=< liftMay) ls
-            app [a] = a  <> "()"
-            app xs = addBraces (10 <= prec) (sep xs)
 
 data Elide t a
 instance Applicative m => PrintClosure r (Elide t f) t m where
@@ -124,7 +129,7 @@ class Applicative m => PrintClosure r t f m where
       pClosImpl :: (?printBase :: Proxy# r, ?printLocal :: Proxy# t) => Int -> f -> m (Doc Attr)
 instance (PrintClosure r r b m) => PrintClosure r Base (GenClosure b) m where
     pClosImpl  prec c = case c of
-        _ | Just ch <- isChar c -> pure $ app ["C#", pretty ch]
+        _ | Just ch <- isChar c -> pure $ app prec ["C#", pretty ch]
         _ | Just (h,t) <- isCons c -> addBraces (5 <= prec) <$> do
             l <- showBox 5 h 
             r <- showBox 4 t
@@ -133,18 +138,18 @@ instance (PrintClosure r r b m) => PrintClosure r Base (GenClosure b) m where
             fmap tupled (traverse (showBox 1) vs)
         ConstrClosure {..} -> do
             ptrs <- traverse (showBox 10) ptrArgs
-            pure $ app $ pretty name : ptrs <> map pretty dataArgs
+            pure $ app prec $ pretty name : ptrs <> map pretty dataArgs
         ThunkClosure {..} -> do
             ptrs <- traverse (showBox 10) ptrArgs
-            pure $ app $ "_thunk" : ptrs <> map pretty dataArgs
+            pure $ app prec $ "_thunk" : ptrs <> map pretty dataArgs
         SelectorClosure {..} -> appBox "_sel" selectee
         IndClosure {..} -> appBox "_ind" indirectee
         BlackholeClosure {..} -> appBox "_bh" indirectee
-        APClosure {..} -> fmap app (traverse (showBox 10) (fun : payload))
-        PAPClosure {..} -> fmap app (traverse (showBox 10) (fun : payload))
-        APStackClosure {..} -> fmap app (traverse (showBox 10) (fun : payload))
+        APClosure {..} -> fmap (app prec) (traverse (showBox 10) (fun : payload))
+        PAPClosure {..} -> fmap (app prec) (traverse (showBox 10) (fun : payload))
+        APStackClosure {..} -> fmap (app prec) (traverse (showBox 10) (fun : payload))
         BCOClosure {..} -> appBox "_bco" bcoptrs
-        ArrWordsClosure {..} -> pure $ app
+        ArrWordsClosure {..} -> pure $ app prec
             ["toArray", "("<>pretty (length arrWords) <> " words)", sep $ punctuate comma (shorten (map pretty arrWords)) ]
         MutArrClosure {..} -> do
             payload <- traverse (showBox 10) mccPayload
@@ -156,29 +161,29 @@ instance (PrintClosure r r b m) => PrintClosure r Base (GenClosure b) m where
             ptrs <- traverse (showBox 0) ptrArgs
             pure $ "_fun" <> braceize (ptrs <> map pretty dataArgs)
         BlockingQueueClosure {} -> pure "_blockingQueue"
-        IntClosure {..} -> pure $ app ["Int", pretty intVal]
-        WordClosure {..} -> pure $ app
+        IntClosure {..} -> pure $ app prec ["Int", pretty intVal]
+        WordClosure {..} -> pure $ app prec
             ["Word", pretty wordVal]
-        Int64Closure {..} -> pure $ app
+        Int64Closure {..} -> pure $ app prec
             ["Int64", pretty int64Val]
-        Word64Closure {..} -> pure $ app
+        Word64Closure {..} -> pure $ app prec
             ["Word64", pretty word64Val]
-        AddrClosure {..} -> pure $ app
+        AddrClosure {..} -> pure $ app prec
             ["Addr", pretty addrVal]
-        FloatClosure {..} -> pure $ app
+        FloatClosure {..} -> pure $ app prec
             ["Float", pretty floatVal]
-        DoubleClosure {..} -> pure $ app
+        DoubleClosure {..} -> pure $ app prec
             ["Double", pretty doubleVal]
-        OtherClosure {..} ->
+        OtherClosure {} ->
             pure "_other"
-        UnsupportedClosure {..} ->
+        UnsupportedClosure {} ->
             pure "_unsupported closure"
         -- copy-pasta'd from MutArrClosure:
         SmallMutArrClosure {..} -> do
             --["toMutArray", "("<>show (length mccPayload) <> " ptrs)",  intercalate "," (shorten (map (showBox 10) mccPayload))]
             payload <- traverse (showBox 10) mccPayload
             pure $ list $ (shorten payload)
-        WeakClosure {..} -> pure "_weak"
+        WeakClosure {} -> pure "_weak"
         IOPortClosure {} -> pure "_ioPortClosure"
         TSOClosure {} -> pure "_tsoClosure"
         StackClosure{} -> pure "_stackClosure"
@@ -186,20 +191,54 @@ instance (PrintClosure r r b m) => PrintClosure r Base (GenClosure b) m where
         showBox i' v' = self (pClos i' v')
         appBox str sel = do
             s <- showBox 10 sel
-            pure $ app [str, s]
-        app [a] = a  <> "()"
-        app xs = addBraces (10 <= prec) (sep xs)
+            pure $ app prec [str, s]
 
         shorten xs = if length xs > 20 then take 20 xs <> ["(and more)"] else xs
 
-type Printer = Elide (Maybe From, [String]) (PrettyListLiterals (NamedThunks Base))
+data HeapRoot = HeapRoot HeapGraphIndex
+instance (PrintClosure r r (HeapGraphEntry t) m, MonadHeapPrint t m) => PrintClosure r Base HeapRoot m where
+    pClosImpl _prec (HeapRoot r) = do
+        binds <- getHeapBindings
+        HeapGraph nodes <- getHeapContent
+        let
+            reachability :: IM.IntMap IS.IntSet
+            reachability = IM.fromListWith (<>) (IM.toList (IM.map (IS.fromList . catMaybes . F.toList  . hgeClosure) nodes) <> [(k, reachable v) | (k,vs) <- IM.toList nodes, Just v <- F.toList (hgeClosure vs)])
+            reachable :: HeapGraphIndex -> IS.IntSet
+            reachable x = IM.findWithDefault mempty x reachability
+        kv <- forM  ((r:) $ filter (`IM.member` binds) $ IS.toList $ reachable r) $ \k -> do
+            o <- self (pClos 10 (nodes !!! k))
+            pure (k,o)
+        if IM.member r binds
+        then pure $ "let" <+> vcat (map (\(k,v) -> pretty (binds !!! k) <+> "=" <+> v) kv) <> line <> " in " <> pretty (binds !!! r)
+        else pure "???"
+
+
+class Monad m => MonadDecorate m where
+    lookupDecorate :: HeapGraphIndex -> m (Maybe Attr)
+    default lookupDecorate :: (MonadTrans t, MonadDecorate m', t m' ~ m) => HeapGraphIndex -> m (Maybe Attr)
+    lookupDecorate = lift . lookupDecorate
+newtype DecorateT m a = DecorateT { unDecorateT :: ReaderT (IM.IntMap Attr) m a }
+    deriving newtype (Functor, Applicative, Monad, MonadTrans)
+    deriving anyclass (MonadHeapPrint t)
+runDecorateT :: DecorateT m a -> IM.IntMap Attr -> m a
+runDecorateT (DecorateT m) = runReaderT m
+instance Monad m => MonadDecorate (DecorateT m) where
+    lookupDecorate idx = DecorateT $ asks (IM.lookup idx)
+data DecorateElems f
+instance (PrintClosure r x (HeapGraphIndex) m, MonadDecorate m)  => PrintClosure r (DecorateElems x) HeapGraphIndex m where
+    pClosImpl prec idx =
+        lookupDecorate idx >>= \case
+          Nothing -> super (pClos prec idx)
+          Just dec -> annotate dec <$> super (pClos prec idx)
+instance {-# OVERLAPS #-}(PrintClosure r x b m, MonadDecorate m)  => PrintClosure r (DecorateElems x) b m where
+    pClosImpl prec idx = super (pClos prec idx)
+
+type Printer = DecorateElems (Elide (Maybe From, [String]) (PrettyListLiterals (NamedThunks Base)))
 printClosure :: forall r f m. (PrintClosure r r f m) => Int -> f -> m (Doc Attr)
 printClosure prec f = let ?printBase = proxy# @r in self (pClos prec f)
 
-ppHeapGraph'' :: forall x t m v. (PrintClosure x x v m) => v -> m (Doc Attr)
-ppHeapGraph'' a = let ?printBase = proxy# @x; ?printLocal = proxy# @x in self (pClos 10 a)
-ppHeapGraph' :: a
-ppHeapGraph' = undefined
+ppHeapGraph' :: IM.IntMap Attr -> HeapGraph HeapData -> Doc Attr
+ppHeapGraph' attrs hg = runIdentity $ runDecorateT (runHeapPrintT (printClosure @Printer 0 (HeapRoot 0)) hg) attrs
 
 pClos :: forall t r f x m. (?printBase :: Proxy# r, PrintClosure r x f m) => Int -> f -> Dispatch t r x (m (Doc Attr))
 pClos a b = Dispatch (let ?printLocal = proxy# :: Proxy# x in pClosImpl a b)
@@ -208,12 +247,15 @@ isNil :: GenClosure b -> Bool
 isNil (ConstrClosure { name = "[]", dataArgs = [], ptrArgs = []}) = True
 isNil _ = False
 
+app :: Int -> [Doc ann] -> Doc ann
+app _ [a] = a  <> "()"
+app prec xs = addBraces (10 <= prec) (sep xs)
 addBraces :: (Monoid s, IsString s) => Bool -> s -> s
 addBraces True t = "(" <> t <> ")"
 addBraces False t = t
 
-ppClosureDoc :: Int -> GenClosure HeapData -> Doc Attr
-ppClosureDoc b c = runIdentity (printClosure @Printer b c)
+ppClosureDoc :: IM.IntMap Attr -> Int -> GenClosure HeapData -> Doc Attr
+ppClosureDoc a b c = runIdentity (runDecorateT (printClosure @Printer b c) a)
 
 
 braceize :: [Doc a] -> Doc a
@@ -227,9 +269,22 @@ isTup (ConstrClosure { dataArgs = [], ..}) =
     then Just ptrArgs else Nothing
 isTup _ = Nothing
 
-class Monad m => MonadHeapPrint t m | m -> t where
+class Monad m => MonadHeapPrint k m | m -> k where
     getHeapBindings :: m (IM.IntMap String)
-    getHeapContent :: m (HeapGraph t)
+    default getHeapBindings :: (m ~ t n, MonadHeapPrint k n, MonadTrans t) => m (IM.IntMap String)
+    getHeapBindings = lift getHeapBindings
+    getHeapContent :: m (HeapGraph k)
+    default getHeapContent :: (m ~ t n, MonadHeapPrint k n, MonadTrans t) => m (HeapGraph k)
+    getHeapContent = lift getHeapContent
+
+runHeapPrintT :: HeapPrintT t m a -> HeapGraph t -> m a
+runHeapPrintT (HeapPrintT r) hg = runReaderT r (hg, mkBindingMap hg)
+newtype HeapPrintT t m a = HeapPrintT { unHeapPrintT :: ReaderT (HeapGraph t, IM.IntMap String) m a }
+    deriving newtype (Functor, Applicative, Monad, MonadTrans, MonadIO, MonadState s)
+    deriving anyclass MonadDecorate
+instance Monad m => MonadHeapPrint t (HeapPrintT t m) where
+  getHeapBindings = HeapPrintT $ asks snd
+  getHeapContent = HeapPrintT $ asks fst
 lookupBindingLabel :: MonadHeapPrint t m => HeapGraphIndex -> m (Maybe String)
 lookupBindingLabel i = IM.lookup i <$> getHeapBindings
 lookupHeapRep :: MonadHeapPrint t m => HeapGraphIndex -> m (Either String (HeapGraphEntry t))
@@ -248,12 +303,10 @@ heapIsBound i = IM.member i <$> getHeapBindings
 mkBindingMap :: HeapGraph t -> IM.IntMap String
 mkBindingMap (HeapGraph m) = ppBindingMap
   where
-    bindings = boundMultipleTimes (HeapGraph m) [heapGraphRoot]
     -- | In the given HeapMap, list all indices that are used more than once. The
     -- second parameter adds external references, commonly @[heapGraphRoot]@.
-    boundMultipleTimes :: HeapGraph a -> [HeapGraphIndex] -> [HeapGraphIndex]
-    boundMultipleTimes (HeapGraph m) roots = map head $ filter (not.null) $ map tail $ L.group $ L.sort $
-        roots <> concatMap (catMaybes . allClosures . hgeClosure) (IM.elems m)
+    bindings :: [HeapGraphIndex]
+    bindings = nubOrd $ (0:) $ M.keys $  M.filter (> 1) $ M.fromListWith (+) $ map (,1) $ concatMap (catMaybes . allClosures . hgeClosure) (IM.elems m)
 
     bindingLetter i = case hgeClosure (iToE i) of
         ThunkClosure {} -> 't'
@@ -267,7 +320,12 @@ mkBindingMap (HeapGraph m) = ppBindingMap
     ppBindingMap = IM.fromList
         [ (v, k : show idx)
         | (k,vs) <- M.toList groupedBindings
-        , (v, idx) <- zip vs [1..]
+        , (v, idx) <- zip vs [1::Int ..]
         ]
     groupedBindings = M.fromListWith (<>) [ (bindingLetter i, [i]) | i <- bindings ]
-    iToE i = m IM.! i
+    iToE i = m !!! i
+
+(!!!) :: (HasCallStack) => IM.IntMap v -> IM.Key -> v
+(!!!) m k = case IM.lookup k m of
+    Nothing -> error $ "HeapGraph.!!!: key " ++ show k ++ " not found"
+    Just v -> v

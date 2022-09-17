@@ -15,23 +15,12 @@ someFunc = do
      as = [1..10]
      {-# NOINLINE xs #-}
      xs = foo . filter even  $ as
-   x <- printValue' xs
-   -- print =<< whereFrom x
-   -- hg <- buildHeapGraph 10 () $ asBox x 
-   -- print $ ppHeapGraph hg
-   print x
-
-
-
+   xs `seq` pure ()
+   printValue xs
 {-# NOINLINE foo #-}
 foo :: [Int] -> [Int]
 foo ls =  scanl (+) 0 (map (*2) ls)
 
-
-printValue' :: b -> IO b
-printValue' a = do
-    printValue a
-    pure a
 
 
 -- debug :: a -> a

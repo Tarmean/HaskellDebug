@@ -43,6 +43,19 @@ packages:
       sha256: 6957bb4fcbe41a98dc45784f08ed5b25ee604c1d581d58cd7e81108fc63f6b33
   original:
     hackage: vty-5.36@sha256:dfbb78ea924ad0ef66cff4bc223918240234508c3de139b34780038dafb5fc53,20859
+- completed:
+    subdir: ghc-dump-core
+    name: ghc-dump-core
+    version: 0.2.1.0
+    git: https://github.com/bgamari/ghc-dump
+    pantry-tree:
+      size: 385
+      sha256: 2a58312cebb9b88586f00b297ac002249ebab7a4f60beb71f763127a0f69a94e
+    commit: 2dcf0c6163e86b614b5aef68926f6ac3744c7897
+  original:
+    subdir: ghc-dump-core
+    git: https://github.com/bgamari/ghc-dump
+    commit: 2dcf0c6163e86b614b5aef68926f6ac3744c7897
 snapshots:
 - completed:
     size: 554661

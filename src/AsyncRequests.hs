@@ -10,7 +10,6 @@ import Data.Typeable
 import Data.Kind
 import Control.Monad.Trans
 import Control.Concurrent.MVar
-import Control.Concurrent (forkFinally)
 import Control.Monad.Trans.Maybe (MaybeT)
 import Control.Monad.Reader
 import GHC.IO (unsafePerformIO)

@@ -28,7 +28,7 @@ import HeapUtils (traverseHeapGraph, traverseHeapEntry, childrenOf, ppHeapGraph'
 import WhereFrom (mkFrom, From (From, ipLoc), Location (..))
 import AsyncRequests (runCachingT, mkCache)
 import Brick.BChan (BChan, newBChan)
-import Graphics.Vty (mkVty)
+import Graphics.Vty (mkVty, withStyle, bold, red, withForeColor)
 import Graphics.Vty.Config (defaultConfig)
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe (fromMaybe, fromJust)
@@ -37,6 +37,7 @@ import Text.Pretty.Simple (pPrint)
 import qualified Data.List as L
 import Control.Applicative (Applicative(liftA2))
 import qualified PrettyprinterVty as PPVty
+import qualified Data.IntMap as IM
 
 
 type Label = ()
@@ -75,8 +76,13 @@ type Label = ()
 -- readT :: T.Text -> Int
 -- readT = read . T.unpack
 
-rHeap :: HeapGraph HeapData -> Widget l
-rHeap h = border $ raw $ PPVty.render (ppHeapGraph' h)
+rHeap :: AppState -> Widget l
+rHeap s = border $ raw $ PPVty.render (ppHeapGraph' attrMap h)
+  where
+      boldAttr = defAttr `withStyle` bold `withForeColor` red
+      h = s^. coreState . heapGraph
+      selected = s ^. coreState . activeNode . to NE.head
+      attrMap = IM.singleton selected boldAttr
 
 wrapping :: Int -> String -> String
 wrapping i = unlines . chunksOf . words
@@ -112,14 +118,14 @@ slicing l r = V.take (r-l+3) . V.drop (l-2)
 
 app :: App AppState e l
 app = App {
-  appDraw = \s -> [rHeap (s^. coreState . heapGraph) <=> rFile s <=> rWhoCreated s],
+  appDraw = \s -> [rHeap s <=> rFile s <=> rWhoCreated s],
   appChooseCursor = neverShowCursor,
   appHandleEvent = \e -> do
      case e of
-      VtyEvent (Inp.EvKey (Inp.KChar 'l') []) -> moveToChild
-      VtyEvent (Inp.EvKey (Inp.KChar 'j') []) -> moveToSibling 1
-      VtyEvent (Inp.EvKey (Inp.KChar 'k') []) -> moveToSibling (-1)
-      VtyEvent (Inp.EvKey (Inp.KChar 'h') []) -> moveToParent
+      VtyEvent (Inp.EvKey (Inp.KChar 'j') []) -> moveToChild
+      VtyEvent (Inp.EvKey (Inp.KChar 'l') []) -> moveToSibling 1
+      VtyEvent (Inp.EvKey (Inp.KChar 'h') []) -> moveToSibling (-1)
+      VtyEvent (Inp.EvKey (Inp.KChar 'k') []) -> moveToParent
       VtyEvent (Inp.EvKey (Inp.KChar 'r') []) -> forceAndReload
       VtyEvent (Inp.EvKey Inp.KEsc []) -> halt
       _ -> pure ()
