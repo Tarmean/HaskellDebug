@@ -51,9 +51,9 @@ data Base
 
 
 newtype Dispatch self root next  a = Dispatch { unDispatch :: a }
-self :: Dispatch x root root a -> a
+self :: (?printBase :: Proxy# root) => Dispatch x root root a -> a
 self = unDispatch
-super :: Dispatch (f parent) root parent a -> a
+super :: (?printLocal :: Proxy# (f parent)) => Dispatch (f parent) root parent a -> a
 super = unDispatch
 -- printR ::forall x l a r.  (?printRoot :: Proxy# r, ?printLocal :: Proxy# l, Printer r x a) => a -> Dispatch l r x String
 -- printR x = Dispatch (let ?printLocal = proxy# :: Proxy# x in printImpl x)
