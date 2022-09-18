@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 -- FIXME: this makes ghc hang
@@ -12,12 +13,21 @@ import Data.Char (isDigit)
 import qualified Text.Megaparsec as P
 import Data.Void
 mkFrom :: Box -> IO (Maybe From)
+
+#if MIN_VERSION_base(4,17,0)
+mkFrom (Box a) = do
+    ls <- Stack.whereFrom a
+    case ls of
+        Just Stack.InfoProv{..} -> pure $ Just From {ipLoc = parseLocation (T.pack ipLoc), ipDesc = T.pack ipDesc, ipTyDesc = T.pack ipTyDesc, ipLabel = T.pack ipLabel, ipMod = T.pack ipMod, ipName = T.pack ipName}
+        Nothing -> pure Nothing
+#else
 mkFrom (Box a) = do
     ls <- map T.pack <$> Stack.whereFrom a
     case ls of
         [ipName, ipDesc, ipTyDesc, ipLabel, ipMod, loc] -> pure $ Just From {ipLoc = parseLocation loc, ..}
         [] -> pure Nothing
         o -> error ("mkFrom: " ++ show o)
+#endif
 
 data Location = Location {
    lFile :: T.Text,

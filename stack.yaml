@@ -45,12 +45,22 @@ extra-deps:
 - brick-1.1@sha256:a4d13f2ae42acb61bb9850033181059e0cd0ed34ded39154f72cdbc7d083dc0b,17828
 - bimap-0.5.0@sha256:aba506d02a1c93fc2b50dcbe728d2a4d07cca89b7033945418061a0b08576ebd,1889
 - text-zipper-0.12@sha256:e96110598fc25e57a99ffcd8e583351af8b325b813aa5e3bd0adc627e3e02b6b,1472
-- vty-5.36@sha256:dfbb78ea924ad0ef66cff4bc223918240234508c3de139b34780038dafb5fc53,20859
+- git: https://github.com/jtdaugherty/vty
+  commit: db5f55caf3321d9e015fa99cc41908c12ef172a5
 - git: https://github.com/Tarmean/ghc-dump
-  commit: 0595026461c39ea3047c2280025dfb2b5e675f75
+  commit: cf13e95e32d65a295c893f18fa1ffb67adecfd1f
   subdirs: 
     - ghc-dump-core
     - ghc-dump-util
+- Cabal-3.6.3.0@sha256:ff97c442b0c679c1c9876acd15f73ac4f602b973c45bde42b43ec28265ee48f4,12459
+- git: https://github.com/haskell/primitive
+  commit: f999acfb2ae2f84deff007ad109f87b2b650dc79
+- git: https://github.com/parsonsmatt/cborg/
+  commit: 05ca2063ff631667699bffbeee3a4a076943b905
+  subdirs: 
+    - cborg
+    - serialise
+
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
@@ -64,7 +74,8 @@ extra-deps:
 # extra-package-dbs: []
 
 # Control whether we use the GHC we find on the path
-# system-ghc: true
+system-ghc: true
+skip-ghc-check: true
 #
 # Require a specific version of stack, using version ranges
 # require-stack-version: -any # Default
@@ -80,4 +91,4 @@ extra-deps:
 #
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
-# allow-newer: true
+allow-newer: true

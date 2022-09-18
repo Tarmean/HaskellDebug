@@ -47,7 +47,7 @@ data RenderState = RenderState {
 } deriving Show
 data Requests a where
     LoadFile :: T.Text -> Requests (Maybe (V.Vector T.Text))
-    LoadGhcDump :: T.Text -> Int -> Requests Module
+    LoadGhcDump :: T.Text -> Int -> Requests (Maybe Module)
 deriving instance Show (Requests a)
 data AppState = AppState {
     _coreState :: CoreState,
@@ -84,7 +84,7 @@ runRequest (LoadGhcDump modul v) = do
     let path = prefix <> T.unpack path0 <> ".pass-" <> pad4 (show v) <> ".cbor.zstd"
     o <- readSModule path
     -- error (renderShowS (layoutPretty defaultLayoutOptions (pretty o)) "")
-    pure (reconModule o)
+    pure (Just (reconModule o))
 
 deriving instance Eq (Requests a)
 deriving instance Ord (Requests a)
@@ -99,20 +99,20 @@ loadRenderState cs c = do
     content <- runCachingT c $ with (fmap lFile . ipLoc =<< from) (\loc -> send (LoadFile loc))
     ast <- runMaybeT $ do
           empty
-          Just frm <- pure from
-          let sl = ipMod frm
-          o <- MaybeT $ runCachingT c $ send (LoadGhcDump sl 25)
+        --   Just frm <- pure from
+        --   let sl = ipMod frm
+        --   o <- MaybeT $ runCachingT c $ send (LoadGhcDump sl 25)
         --   pTraceShowM o
-          let 
-            binderTxt = binderName  . unBndr 
-            hasBinder s (NonRecTopBinding b _ _) = T.isInfixOf s (binderTxt b)
-            hasBinder s (RecTopBinding ls) = or [T.isInfixOf s (binderTxt x) | (x,_,_) <- ls]
-          case L.find (hasBinder (dropEnd "_info" $ ipName frm)) (moduleTopBindings o) of
-              Nothing -> if
-                 T.isInfixOf "con" (ipName frm) || (ipName frm == "sat_info")
-                 then empty
-                 else error ("No binder found for " <> show frm <> "\n" <> show o)
-              Just x -> pure x
+    --       let 
+    --         binderTxt = binderName  . unBndr 
+    --         hasBinder s (NonRecTopBinding b _ _) = T.isInfixOf s (binderTxt b)
+    --         hasBinder s (RecTopBinding ls) = or [T.isInfixOf s (binderTxt x) | (x,_,_) <- ls]
+    --       case L.find (hasBinder (dropEnd "_info" $ ipName frm)) (moduleTopBindings o) of
+    --           Nothing -> if
+    --              T.isInfixOf "con" (ipName frm) || (ipName frm == "sat_info")
+    --              then empty
+    --              else error ("No binder found for " <> show frm <> "\n" <> show o)
+    --           Just x -> pure x
     pure $ RenderState (join content) ast from
 
 rebuildState :: MonadIO m => AppState -> m AppState

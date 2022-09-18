@@ -37,12 +37,16 @@ packages:
   original:
     hackage: text-zipper-0.12@sha256:e96110598fc25e57a99ffcd8e583351af8b325b813aa5e3bd0adc627e3e02b6b,1472
 - completed:
-    hackage: vty-5.36@sha256:dfbb78ea924ad0ef66cff4bc223918240234508c3de139b34780038dafb5fc53,20859
+    name: vty
+    version: '5.37'
+    git: https://github.com/jtdaugherty/vty
     pantry-tree:
-      size: 5394
-      sha256: 6957bb4fcbe41a98dc45784f08ed5b25ee604c1d581d58cd7e81108fc63f6b33
+      size: 7236
+      sha256: d70853c043e652c7a47c89b45347227ade62bd0cb0c74a01e52a3c293e67c780
+    commit: db5f55caf3321d9e015fa99cc41908c12ef172a5
   original:
-    hackage: vty-5.36@sha256:dfbb78ea924ad0ef66cff4bc223918240234508c3de139b34780038dafb5fc53,20859
+    git: https://github.com/jtdaugherty/vty
+    commit: db5f55caf3321d9e015fa99cc41908c12ef172a5
 - completed:
     subdir: ghc-dump-core
     name: ghc-dump-core
@@ -50,12 +54,12 @@ packages:
     git: https://github.com/Tarmean/ghc-dump
     pantry-tree:
       size: 385
-      sha256: 2a58312cebb9b88586f00b297ac002249ebab7a4f60beb71f763127a0f69a94e
-    commit: 0595026461c39ea3047c2280025dfb2b5e675f75
+      sha256: ef98baebab0b19c9d19c4e9893b78a009c1255bf18f88c688ac0a35bae16b5b0
+    commit: cf13e95e32d65a295c893f18fa1ffb67adecfd1f
   original:
     subdir: ghc-dump-core
     git: https://github.com/Tarmean/ghc-dump
-    commit: 0595026461c39ea3047c2280025dfb2b5e675f75
+    commit: cf13e95e32d65a295c893f18fa1ffb67adecfd1f
 - completed:
     subdir: ghc-dump-util
     name: ghc-dump-util
@@ -64,11 +68,55 @@ packages:
     pantry-tree:
       size: 562
       sha256: f880f36a54e26dede0f5f72b1be17944190e5a1a3ddeb42fc92ab384c9f80bdb
-    commit: 0595026461c39ea3047c2280025dfb2b5e675f75
+    commit: cf13e95e32d65a295c893f18fa1ffb67adecfd1f
   original:
     subdir: ghc-dump-util
     git: https://github.com/Tarmean/ghc-dump
-    commit: 0595026461c39ea3047c2280025dfb2b5e675f75
+    commit: cf13e95e32d65a295c893f18fa1ffb67adecfd1f
+- completed:
+    hackage: Cabal-3.6.3.0@sha256:ff97c442b0c679c1c9876acd15f73ac4f602b973c45bde42b43ec28265ee48f4,12459
+    pantry-tree:
+      size: 19757
+      sha256: b250a53bdb56844f047a2927833bb565b936a289abfa85dfc2a63148d776368a
+  original:
+    hackage: Cabal-3.6.3.0@sha256:ff97c442b0c679c1c9876acd15f73ac4f602b973c45bde42b43ec28265ee48f4,12459
+- completed:
+    name: primitive
+    version: 0.8.0.0
+    git: https://github.com/haskell/primitive
+    pantry-tree:
+      size: 2062
+      sha256: b4b11b57e2da430b2ad4b4ca05d3792cb27b922fa4ee3b201d1a6ed6b317e523
+    commit: f999acfb2ae2f84deff007ad109f87b2b650dc79
+  original:
+    git: https://github.com/haskell/primitive
+    commit: f999acfb2ae2f84deff007ad109f87b2b650dc79
+- completed:
+    subdir: cborg
+    name: cborg
+    version: 0.2.7.0
+    git: https://github.com/parsonsmatt/cborg/
+    pantry-tree:
+      size: 2710
+      sha256: bf47daebbae296a5a6a805acbcea5c28ea2375be2965e2c1a437b7acee1d64e7
+    commit: 05ca2063ff631667699bffbeee3a4a076943b905
+  original:
+    subdir: cborg
+    git: https://github.com/parsonsmatt/cborg/
+    commit: 05ca2063ff631667699bffbeee3a4a076943b905
+- completed:
+    subdir: serialise
+    name: serialise
+    version: 0.2.5.0
+    git: https://github.com/parsonsmatt/cborg/
+    pantry-tree:
+      size: 4056
+      sha256: 1d089c45bfcf6f039baca3b20adb631e11ad5ed249f20526a8d96c6b48d7b518
+    commit: 05ca2063ff631667699bffbeee3a4a076943b905
+  original:
+    subdir: serialise
+    git: https://github.com/parsonsmatt/cborg/
+    commit: 05ca2063ff631667699bffbeee3a4a076943b905
 snapshots:
 - completed:
     size: 554661
