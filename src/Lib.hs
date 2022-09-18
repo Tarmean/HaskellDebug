@@ -2,22 +2,27 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -fplugin GhcDump.Plugin #-}
 {-# LANGUAGE OverloadedStrings #-}
+
 module Lib
     ( someFunc
 
     ) where
 
 import UI ( printValue )
+import State (runRequest, Requests (LoadGhcDump))
+import Data.Text.Prettyprint.Doc (pretty)
 
 someFunc :: IO ()
 someFunc = do
-   let 
-     {-# NOINLINE as #-}
-     as = [1..10]
-     {-# NOINLINE xs #-}
-     xs = foo . filter even  $ as
-   xs `seq` pure ()
-   printValue xs
+   r <- runRequest (LoadGhcDump "Lib" 25)
+   printValue r
+  --  let 
+  --    {-# NOINLINE as #-}
+  --    as = [1..10]
+  --    {-# NOINLINE xs #-}
+  --    xs = foo . filter even  $ as
+  --  xs `seq` pure ()
+  --  printValue xs
 {-# NOINLINE foo #-}
 foo :: [Int] -> [Int]
 foo ls =  scanl (+) 0 (map (*2) ls)

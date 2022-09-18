@@ -1,0 +1,5 @@
+Stack has not been tested with GHC versions above 9.0, and using 9.2.2, this may fail
+Stack has not been tested with Cabal versions above 3.4, but version 3.6.3.0 was found, this may fail
+Loading file: src/Lib.hs
+Loading file: src/State.hs
+HaskellDebug-exe: dist-newstyle/src/State.pass-0025.cbor.zstd: openBinaryFile: does not exist (No such file or directory)

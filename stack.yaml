@@ -46,9 +46,11 @@ extra-deps:
 - bimap-0.5.0@sha256:aba506d02a1c93fc2b50dcbe728d2a4d07cca89b7033945418061a0b08576ebd,1889
 - text-zipper-0.12@sha256:e96110598fc25e57a99ffcd8e583351af8b325b813aa5e3bd0adc627e3e02b6b,1472
 - vty-5.36@sha256:dfbb78ea924ad0ef66cff4bc223918240234508c3de139b34780038dafb5fc53,20859
-- git: https://github.com/bgamari/ghc-dump
-  commit: 2dcf0c6163e86b614b5aef68926f6ac3744c7897
-  subdir: ghc-dump-core
+- git: https://github.com/Tarmean/ghc-dump
+  commit: 0595026461c39ea3047c2280025dfb2b5e675f75
+  subdirs: 
+    - ghc-dump-core
+    - ghc-dump-util
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a

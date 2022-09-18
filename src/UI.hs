@@ -37,6 +37,12 @@ import qualified Data.List as L
 import Control.Applicative (Applicative(liftA2))
 import qualified PrettyprinterVty as PPVty
 import qualified Data.IntMap as IM
+import Prettyprinter (Pretty(pretty))
+import Debug.Pretty.Simple (pTraceM, pTraceShowM)
+import qualified Brick as Inp
+import qualified Graphics.Vty.Output.Interface as Vty
+import qualified Graphics.Vty as Vty
+import Control.Monad (when)
 
 
 type Label = ()
@@ -75,8 +81,8 @@ type Label = ()
 -- readT :: T.Text -> Int
 -- readT = read . T.unpack
 
-rHeap :: AppState -> Widget l
-rHeap s = border $ raw $ PPVty.render (ppHeapGraph' attrMap h)
+rHeap :: AppState -> Widget ViewPorts
+rHeap s = border $ clickable ViewPortHeap $ viewport ViewPortHeap Vertical $ raw $ PPVty.render (ppHeapGraph' attrMap h)
   where
       boldAttr = defAttr `withStyle` bold `withForeColor` red
       h = s^. coreState . heapGraph
@@ -93,15 +99,32 @@ wrapping i = unlines . chunksOf . words
     chunksOf xs = unwords (map snd l) : chunksOf (map snd r)
       where (l,r) = L.span ((<= i) . fst) (addLen xs)
 
-rFile :: AppState -> Widget l
-rFile AppState { _renderState = RenderState { _fileContent = Just vs, _fileImportant = Just From{ipLoc = Just WhereFrom.Location{lStart=(l,_), lEnd=(r,_)}}} } = border $  vBox $ map (str . T.unpack) . V.toList $  slicing l r vs
-rFile s = border $ str ("? " <> show active <> ":\n" <> wrapping 70 snode)
+rCore :: AppState -> Widget l
+rCore AppState { _renderState = RenderState { _astContent = Just vs }} = border $ str "YES LOADED " -- raw $ PPVty.render (pretty vs)
+rCore _ = border $ str "NO CORE LOADED"
+
+showLoc :: WhereFrom.Location -> String
+showLoc WhereFrom.Location { lFile, lStart = (a,b), lEnd = (c,d)}
+  | a == c, b == d = pre <> show a <> ":" <> show b
+  | a == c = pre <> show a <> ":" <> show b <> "-" <> show d
+  | otherwise = pre <> "(" <> show a <> "," <> show b <> ")-(" <> show c <> "," <> show d <> ")"
+  where pre = T.unpack lFile <> ":"
+
+data ViewPorts = ViewPortFile | ViewPortHeap
+  deriving (Eq, Ord, Show)
+rFile :: AppState -> Widget ViewPorts
+rFile AppState { _renderState = RenderState { _fileContent = Just vs, _fileImportant = Just From{ipLoc = Just loc@WhereFrom.Location{lStart=(l,_), lEnd=(r,_)}}} }
+  = border $
+     clickable ViewPortFile $ viewport ViewPortFile Vertical $
+     vBox $ (str (showLoc loc):) $ map (str . T.unpack) . V.toList $  slicing (l-2) r vs
+rFile s = border $ str ("? " <> show active <> ":\n" <> frm <> "\n" <> wrapping 70 snode)
   where
      active = s ^. coreState . activeNode  . to NE.head
      node = s ^. coreState . heapGraph . to (Heap.lookupHeapGraph active)
      snode = case node of
         Just hge -> Heap.ppClosure (\_ a -> sRef a) 10 (Heap.hgeClosure hge)
         _ -> show node
+     frm = maybe "" show (s ^. renderState . fileImportant)
      sRef Nothing = "..."
      sRef (Just i) = "*" <> show i
 rWhoCreated :: AppState -> Widget l
@@ -110,14 +133,14 @@ rWhoCreated s = case node of
     Just xs -> border $  vBox $ map str $ xs
   where
      active = s ^. coreState . activeNode  . to NE.head
-     node = s ^? coreState . heapGraph . to (Heap.lookupHeapGraph active) . _Just . to Heap.hgeData . _2
+     node = s ^? coreState . heapGraph . to (Heap.lookupHeapGraph active) . _Just . to Heap.hgeData . to hwhoCreated
 
 slicing :: Int -> Int -> V.Vector a -> V.Vector a
 slicing l r = V.take (r-l+3) . V.drop (l-2) 
 
-app :: App AppState e l
+app :: App AppState e ViewPorts
 app = App {
-  appDraw = \s -> [rHeap s <=> rFile s <=> rWhoCreated s],
+  appDraw = \s -> [rHeap s <+> (rFile s <=> rWhoCreated s <=> rCore s)],
   appChooseCursor = neverShowCursor,
   appHandleEvent = \e -> do
      case e of
@@ -127,6 +150,10 @@ app = App {
       VtyEvent (Inp.EvKey (Inp.KChar 'k') []) -> moveToParent
       VtyEvent (Inp.EvKey (Inp.KChar 'r') []) -> forceAndReload
       VtyEvent (Inp.EvKey Inp.KEsc []) -> halt
+      Inp.MouseDown ViewPortFile Inp.BScrollDown _ _ -> vScrollBy (viewportScroll ViewPortFile) 5
+      Inp.MouseDown ViewPortFile Inp.BScrollUp _ _ -> vScrollBy (viewportScroll ViewPortFile) (-5)
+      Inp.MouseDown ViewPortHeap Inp.BScrollDown _ _ -> vScrollBy (viewportScroll ViewPortHeap) 5
+      Inp.MouseDown ViewPortHeap Inp.BScrollUp _ _ -> vScrollBy (viewportScroll ViewPortHeap) (-5)
       _ -> pure ()
      s <- get
      s <- rebuildState s
@@ -134,7 +161,11 @@ app = App {
   appStartEvent = return (),
   appAttrMap = const $ attrMap defAttr []
   }
-
+whenIn :: Eq n => Int -> Int -> n -> EventM n s () -> EventM n s ()
+whenIn col row n body = do
+    lookupExtent n >>= \case
+      Just extent | clickedExtent (col,row) extent -> body
+      _ -> pure ()
 moveToParent :: EventM l AppState ()
 moveToParent = do
   s <- get
@@ -185,24 +216,27 @@ defaultMainChan :: (Ord n)
 defaultMainChan app st chan = do
     let builder = mkVty defaultConfig
     initialVty <- builder
+    let output = Vty.outputIface initialVty
+    when (Vty.supportsMode output Vty.Mouse) $
+        liftIO $ Vty.setMode output Vty.Mouse True
     customMain initialVty builder (Just chan) app st
 
 mkCoreState :: Heap.Box -> IO (HeapGraph HeapData)
 mkCoreState b = do
   hg <- liftIO (buildHeapGraph 10 () b)
-  let mk1 he = liftA2 (,) (mkFrom (Heap.hgeBox he)) (case Heap.hgeBox he of Heap.Box e -> whoCreated e)
+  let mk1 he = liftA2 HeapData (mkFrom (Heap.hgeBox he)) (case Heap.hgeBox he of Heap.Box e -> whoCreated e) 
   hg <- liftIO $ traverseHeapGraph (\he -> mk1 he <&> \dat -> he {Heap.hgeData = dat}) hg
+  -- pTraceShowM hg
   pure hg
 printValue :: a -> IO ()
 printValue a = do
   cache <- mkCache runRequest (\_ -> pure ())
   hg <- mkCoreState (Heap.asBox a)
-  pPrint hg
   let core = CoreState hg (0 NE.:| [])
   render <- loadRenderState core cache
   let s = AppState core render cache
   chan <- liftIO (newBChan 8)
-  _ <- liftIO $ defaultMainChan @() app s chan
+  _ <- liftIO $ defaultMainChan @ViewPorts app s chan
   pure ()
 
 -- rSource :: 

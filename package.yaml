@@ -38,6 +38,8 @@ dependencies:
 - pretty-simple
 - prettyprinter
 - ghc-dump-core
+- ghc-dump-util
+- directory
 
 ghc-options:
 - -Wall

@@ -42,7 +42,9 @@ library
       base >=4.7 && <5
     , brick >=1.1
     , containers
+    , directory
     , ghc-dump-core
+    , ghc-dump-util
     , ghc-heap-view
     , ghc-prim
     , megaparsec
@@ -71,7 +73,9 @@ executable HaskellDebug-exe
     , base >=4.7 && <5
     , brick >=1.1
     , containers
+    , directory
     , ghc-dump-core
+    , ghc-dump-util
     , ghc-heap-view
     , ghc-prim
     , megaparsec
@@ -101,7 +105,9 @@ test-suite HaskellDebug-test
     , base >=4.7 && <5
     , brick >=1.1
     , containers
+    , directory
     , ghc-dump-core
+    , ghc-dump-util
     , ghc-heap-view
     , ghc-prim
     , megaparsec

@@ -18,7 +18,7 @@ import WhereFrom
 import Data.Functor ((<&>))
 import qualified Data.Foldable as F
 import Data.Maybe (catMaybes, fromJust, isJust)
-import State (HeapData)
+import State (HeapData (..))
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
 import GHC.HeapView.Debug (isChar, isCons)
@@ -35,6 +35,10 @@ import qualified Data.IntSet as IS
 import GHC.Stack (HasCallStack)
 import Debug.Trace
 import Data.Containers.ListUtils (nubOrd)
+import qualified Data.Text as T
+import qualified Data.Text.Internal as TI
+import Unsafe.Coerce (unsafeCoerce)
+import qualified Data.Text.Array as A
 
 
 traverseHeapGraph :: Applicative m => (HeapGraphEntry a -> m (HeapGraphEntry b)) -> HeapGraph a -> m (HeapGraph b)
@@ -57,11 +61,11 @@ instance {-# OVERLAPS #-} (PrintClosure r f b m) => PrintClosure r (NamedThunks 
 instance (PrintClosure r r (Maybe HeapGraphIndex) m, PrintClosure r f (HeapGraphEntry HeapData) m) =>  PrintClosure r (NamedThunks f) (HeapGraphEntry HeapData) m where
     pClosImpl prec hge = case hgeClosure hge of
       ThunkClosure {..} 
-        | (Just From {ipName = nam}, _) <- hgeData hge-> do
+        | HeapData { hsourceLoc =Just From {ipName = nam}} <- hgeData hge -> do
             ptrs <-  traverse (self . pClos 10) ptrArgs
             pure $ app prec $ pretty nam :ptrs <> map pretty dataArgs
       FunClosure {..} 
-        | (Just From {ipName = nam}, _) <- hgeData hge-> do
+        | HeapData {hsourceLoc = Just From {ipName = nam}} <- hgeData hge -> do
             ptrs <- traverse (self . pClos 10) ptrArgs
             pure $ app prec $ pretty nam : ptrs <> map pretty dataArgs
       _ -> super (pClos prec hge)
@@ -119,6 +123,30 @@ instance (MonadHeapPrint b m, PrintClosure r r (Maybe HeapGraphIndex) m, PrintCl
                 if (null ls)
                     then empty
                     else mapM (liftMay . isChar . hgeClosure <=< MaybeT . lookupHeapUnbound <=< liftMay) ls
+
+data PrettyText f
+instance {-# OVERLAPS #-} (PrintClosure r f b m) => PrintClosure r (PrettyText f) b m where
+    pClosImpl p f = super (pClos p f)
+instance (MonadHeapPrint b m, PrintClosure r f (HeapGraphEntry b) m) => PrintClosure r (PrettyText f) (HeapGraphEntry b) m where
+    pClosImpl prec hge0 = do
+        runMaybeT (isText hge0) >>= \case
+            Just s -> pure $ pretty $ show s
+            Nothing -> super $ pClos prec hge0
+        where
+            liftMay :: Maybe a -> MaybeT m a
+            liftMay Nothing = empty
+            liftMay (Just a) = pure a
+
+            isText :: HeapGraphEntry a -> MaybeT m T.Text
+            isText hge = do
+                (len, offs, Just p) <- liftMay $ isTextCons (hgeClosure hge)
+                HeapGraphEntry { hgeBox = b, hgeClosure = ArrWordsClosure {}} <- MaybeT $ lookupHeapUnbound p
+                return $ TI.Text (unsafeCoerce b) (fromIntegral len) (fromIntegral offs) 
+
+            isTextCons :: GenClosure (Maybe HeapGraphIndex) -> Maybe (Word, Word, Maybe HeapGraphIndex)
+            isTextCons (ConstrClosure { name = "Text", dataArgs = [len,offs], ptrArgs = [p]}) = Just (len, offs, p)
+            isTextCons _ = Nothing
+                
 
 data Elide t a
 instance Applicative m => PrintClosure r (Elide t f) t m where
@@ -196,7 +224,8 @@ instance (PrintClosure r r b m) => PrintClosure r Base (GenClosure b) m where
         shorten xs = if length xs > 20 then take 20 xs <> ["(and more)"] else xs
 
 data HeapRoot = HeapRoot HeapGraphIndex
-instance (PrintClosure r r (HeapGraphEntry t) m, MonadHeapPrint t m) => PrintClosure r Base HeapRoot m where
+data HeapKV t = HeapKV HeapGraphIndex String (HeapGraphEntry t)
+instance (PrintClosure r r (HeapKV t) m, MonadHeapPrint t m) => PrintClosure r Base HeapRoot m where
     pClosImpl _prec (HeapRoot r) = do
         binds <- getHeapBindings
         HeapGraph nodes <- getHeapContent
@@ -206,25 +235,36 @@ instance (PrintClosure r r (HeapGraphEntry t) m, MonadHeapPrint t m) => PrintClo
             reachable :: HeapGraphIndex -> IS.IntSet
             reachable x = IM.findWithDefault mempty x reachability
         kv <- forM  ((r:) $ filter (`IM.member` binds) $ IS.toList $ reachable r) $ \k -> do
-            o <- self (pClos 10 (nodes !!! k))
-            pure (k,o)
+            self $ pClos 0 (HeapKV k (binds !!! k) (nodes !!! k))
+        
         if IM.member r binds
-        then pure $ "let" <+> vcat (map (\(k,v) -> pretty (binds !!! k) <+> "=" <+> v) kv) <> line <> " in " <> pretty (binds !!! r)
+        then pure $ "let" <+> align (vcat kv) <> line <> " in " <> pretty (binds !!! r)
         else pure "???"
 
+instance (PrintClosure r r (HeapGraphEntry t) m, MonadHeapPrint t m) => PrintClosure r Base (HeapKV t) m where
+  pClosImpl prec (HeapKV _ s t) = do
+        p <- self $ pClos prec t
+        pure (pretty s <> " = " <> p)
 
 class Monad m => MonadDecorate m where
-    lookupDecorate :: HeapGraphIndex -> m (Maybe Attr)
-    default lookupDecorate :: (MonadTrans t, MonadDecorate m', t m' ~ m) => HeapGraphIndex -> m (Maybe Attr)
-    lookupDecorate = lift . lookupDecorate
+    decorateMap :: m (IM.IntMap Attr)
+    default decorateMap :: (MonadTrans t, MonadDecorate m', m ~ t m') => m (IM.IntMap Attr)
+    decorateMap = lift decorateMap
+lookupDecorate :: MonadDecorate m => HeapGraphIndex -> m (Maybe Attr)
+lookupDecorate i = IM.lookup i <$> decorateMap
 newtype DecorateT m a = DecorateT { unDecorateT :: ReaderT (IM.IntMap Attr) m a }
     deriving newtype (Functor, Applicative, Monad, MonadTrans)
     deriving anyclass (MonadHeapPrint t)
 runDecorateT :: DecorateT m a -> IM.IntMap Attr -> m a
 runDecorateT (DecorateT m) = runReaderT m
 instance Monad m => MonadDecorate (DecorateT m) where
-    lookupDecorate idx = DecorateT $ asks (IM.lookup idx)
+    decorateMap = DecorateT ask
 data DecorateElems f
+instance (MonadDecorate m, PrintClosure r f (HeapKV t) m) => PrintClosure r (DecorateElems f) (HeapKV t) m where
+    pClosImpl prec v@(HeapKV idx _ _) = do
+        lookupDecorate idx >>= \case
+          Nothing -> super (pClos prec v)
+          Just dec -> annotate dec <$> super (pClos prec v)
 instance (PrintClosure r x (HeapGraphIndex) m, MonadDecorate m)  => PrintClosure r (DecorateElems x) HeapGraphIndex m where
     pClosImpl prec idx =
         lookupDecorate idx >>= \case
@@ -233,7 +273,7 @@ instance (PrintClosure r x (HeapGraphIndex) m, MonadDecorate m)  => PrintClosure
 instance {-# OVERLAPS #-}(PrintClosure r x b m, MonadDecorate m)  => PrintClosure r (DecorateElems x) b m where
     pClosImpl prec idx = super (pClos prec idx)
 
-type Printer = DecorateElems (Elide (Maybe From, [String]) (PrettyListLiterals (NamedThunks Base)))
+type Printer = PrettyText (DecorateElems (Elide HeapData (PrettyListLiterals (NamedThunks Base))))
 printClosure :: forall r f m. (PrintClosure r r f m) => Int -> f -> m (Doc Attr)
 printClosure prec f = let ?printBase = proxy# @r in self (pClos prec f)
 
