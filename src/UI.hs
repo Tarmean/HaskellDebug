@@ -21,6 +21,9 @@ import Control.Monad.Trans
 import Graphics.Vty.Attributes (defAttr)
 import qualified Graphics.Vty.Input as Inp
 import Brick.Widgets.Border
+import Brick.Widgets.Core (hLimitPercent, vLimitPercent)
+import Brick.Types (availWidthL)
+import Control.Monad.Reader (withReaderT)
 import GHC.Stack.CCS as Stack
 import State
 import HeapUtils (traverseHeapGraph, traverseHeapEntry, childrenOf, ppHeapGraph')
@@ -82,7 +85,7 @@ type Label = ()
 -- readT = read . T.unpack
 
 rHeap :: AppState -> Widget ViewPorts
-rHeap s = border $ clickable ViewPortHeap $ viewport ViewPortHeap Vertical $ raw $ PPVty.render (ppHeapGraph' attrMap h)
+rHeap s = border $ mkRelease $ clickable ViewPortHeap $ viewport ViewPortHeap Vertical $ raw $ PPVty.render (ppHeapGraph' attrMap h)
   where
       boldAttr = defAttr `withStyle` bold `withForeColor` red
       h = s^. coreState . heapGraph
@@ -99,9 +102,9 @@ wrapping i = unlines . chunksOf . words
     chunksOf xs = unwords (map snd l) : chunksOf (map snd r)
       where (l,r) = L.span ((<= i) . fst) (addLen xs)
 
-rCore :: AppState -> Widget l
-rCore AppState { _renderState = RenderState { _astContent = Just vs }} = border $ str "YES LOADED " -- raw $ PPVty.render (pretty vs)
-rCore _ = border $ str "NO CORE LOADED"
+rCore :: AppState -> Widget ViewPorts
+rCore AppState { _renderState = RenderState { _astContent = Just vs }} = border $ clickable ViewPortCore $ viewport ViewPortCore Vertical $ vBox ( map (raw . PPVty.render . pretty) vs)
+rCore _ = border $ strWrap "NO CORE LOADED"
 
 showLoc :: WhereFrom.Location -> String
 showLoc WhereFrom.Location { lFile, lStart = (a,b), lEnd = (c,d)}
@@ -110,13 +113,13 @@ showLoc WhereFrom.Location { lFile, lStart = (a,b), lEnd = (c,d)}
   | otherwise = pre <> "(" <> show a <> "," <> show b <> ")-(" <> show c <> "," <> show d <> ")"
   where pre = T.unpack lFile <> ":"
 
-data ViewPorts = ViewPortFile | ViewPortHeap
+data ViewPorts = ViewPortFile | ViewPortHeap | ViewPortCore
   deriving (Eq, Ord, Show)
 rFile :: AppState -> Widget ViewPorts
 rFile AppState { _renderState = RenderState { _fileContent = Just vs, _fileImportant = Just From{ipLoc = Just loc@WhereFrom.Location{lStart=(l,_), lEnd=(r,_)}}} }
   = border $
      clickable ViewPortFile $ viewport ViewPortFile Vertical $
-     vBox $ (str (showLoc loc):) $ map (str . T.unpack) . V.toList $  slicing (l-2) r vs
+     vBox $ (str (showLoc loc):) $ map (strWrap . T.unpack) . V.toList $  slicing (l-2) r vs
 rFile s = border $ str ("? " <> show active <> ":\n" <> frm <> "\n" <> wrapping 70 snode)
   where
      active = s ^. coreState . activeNode  . to NE.head
@@ -140,7 +143,7 @@ slicing l r = V.take (r-l+3) . V.drop (l-2)
 
 app :: App AppState e ViewPorts
 app = App {
-  appDraw = \s -> [rHeap s <+> (rFile s <=> rWhoCreated s <=> rCore s)],
+  appDraw = \s -> [hLimitPercent 70 (rHeap s) <+> (vLimitPercent 60 (rFile s) <=> rWhoCreated s <=> (rCore s))],
   appChooseCursor = neverShowCursor,
   appHandleEvent = \e -> do
      case e of
@@ -154,6 +157,8 @@ app = App {
       Inp.MouseDown ViewPortFile Inp.BScrollUp _ _ -> vScrollBy (viewportScroll ViewPortFile) (-5)
       Inp.MouseDown ViewPortHeap Inp.BScrollDown _ _ -> vScrollBy (viewportScroll ViewPortHeap) 5
       Inp.MouseDown ViewPortHeap Inp.BScrollUp _ _ -> vScrollBy (viewportScroll ViewPortHeap) (-5)
+      Inp.MouseDown ViewPortCore Inp.BScrollDown _ _ -> vScrollBy (viewportScroll ViewPortCore) 5
+      Inp.MouseDown ViewPortCore Inp.BScrollUp _ _ -> vScrollBy (viewportScroll ViewPortCore) (-5)
       _ -> pure ()
      s <- get
      s <- rebuildState s
@@ -161,6 +166,11 @@ app = App {
   appStartEvent = return (),
   appAttrMap = const $ attrMap defAttr []
   }
+mkRelease p =
+    case hSize p of
+        Fixed -> Widget Greedy (hSize p) $
+                        withReaderT (availWidthL .~  10000) (render p)
+        Greedy -> p
 whenIn :: Eq n => Int -> Int -> n -> EventM n s () -> EventM n s ()
 whenIn col row n body = do
     lookupExtent n >>= \case
@@ -235,6 +245,8 @@ printValue a = do
   let core = CoreState hg (0 NE.:| [])
   render <- loadRenderState core cache
   let s = AppState core render cache
+  -- print (core,render)
+  print $ ppHeapGraph' mempty (core ^. heapGraph)
   chan <- liftIO (newBChan 8)
   _ <- liftIO $ defaultMainChan @ViewPorts app s chan
   pure ()

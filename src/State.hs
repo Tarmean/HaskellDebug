@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+-- {-# OPTIONS_GHC -fplugin GhcDump.Plugin #-}
 module State where
 
 
@@ -42,7 +43,7 @@ data CoreState = CoreState {
 } deriving (Show)
 data RenderState = RenderState {
     _fileContent :: Maybe (V.Vector T.Text),
-    _astContent :: Maybe TopBinding,
+    _astContent :: Maybe [TopBinding],
     _fileImportant :: Maybe From
 } deriving Show
 data Requests a where
@@ -82,9 +83,12 @@ runRequest (LoadGhcDump modul v) = do
        pad4 s = replicate (4 - length s) '0' <> s
     let prefix = "dist-newstyle/src/"
     let path = prefix <> T.unpack path0 <> ".pass-" <> pad4 (show v) <> ".cbor.zstd"
-    o <- readSModule path
-    -- error (renderShowS (layoutPretty defaultLayoutOptions (pretty o)) "")
-    pure (Just (reconModule o))
+    doesFileExist path >>= \case
+      True -> do
+        o <- readSModule path
+        -- error (renderShowS (layoutPretty defaultLayoutOptions (pretty o)) "")
+        pure (Just $ reconModule o)
+      False -> pure Nothing
 
 deriving instance Eq (Requests a)
 deriving instance Ord (Requests a)
@@ -98,21 +102,21 @@ loadRenderState cs c = do
     let from = hsourceLoc . Heap.hgeData =<< lookupCurrentNode cs 
     content <- runCachingT c $ with (fmap lFile . ipLoc =<< from) (\loc -> send (LoadFile loc))
     ast <- runMaybeT $ do
-          empty
-        --   Just frm <- pure from
-        --   let sl = ipMod frm
-        --   o <- MaybeT $ runCachingT c $ send (LoadGhcDump sl 25)
-        --   pTraceShowM o
-    --       let 
-    --         binderTxt = binderName  . unBndr 
-    --         hasBinder s (NonRecTopBinding b _ _) = T.isInfixOf s (binderTxt b)
-    --         hasBinder s (RecTopBinding ls) = or [T.isInfixOf s (binderTxt x) | (x,_,_) <- ls]
-    --       case L.find (hasBinder (dropEnd "_info" $ ipName frm)) (moduleTopBindings o) of
-    --           Nothing -> if
-    --              T.isInfixOf "con" (ipName frm) || (ipName frm == "sat_info")
-    --              then empty
-    --              else error ("No binder found for " <> show frm <> "\n" <> show o)
-    --           Just x -> pure x
+          Just frm <- pure from
+          let sl = ipMod frm
+          Just o <- MaybeT $ runCachingT c $ send (LoadGhcDump sl 25)
+          pure (moduleTopBindings o)
+        --   let 
+        --     binderTxt = binderName  . unBndr 
+        --     hasBinder s (NonRecTopBinding b _ _) = T.isInfixOf s (binderTxt b)
+        --     hasBinder s (RecTopBinding ls) = or [T.isInfixOf s (binderTxt x) | (x,_,_) <- ls]
+        --   case L.find (hasBinder (dropEnd "_info" $ ipName frm)) (moduleTopBindings o) of
+        --       Nothing -> --if
+        --         empty
+        --         --  T.isInfixOf "con" (ipName frm) || (ipName frm == "sat_info")
+        --         --  then empty
+        --         --  else error ("No binder found for " <> show frm <> "\n" <> show o)
+        --       Just x -> pure x
     pure $ RenderState (join content) ast from
 
 rebuildState :: MonadIO m => AppState -> m AppState

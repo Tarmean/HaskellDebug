@@ -63,7 +63,7 @@ super = unDispatch
 
 data Proxy# a
 proxy# :: Proxy# a
-proxy# = proxy#
+proxy# = error "Forced proxy"
 
 -- >>> callPrint @(DecZero Base) [0,1,2,3 ::Int]
 -- "ZERO : 1 : 2 : 3 : []"

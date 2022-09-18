@@ -54,12 +54,12 @@ packages:
     git: https://github.com/Tarmean/ghc-dump
     pantry-tree:
       size: 385
-      sha256: ef98baebab0b19c9d19c4e9893b78a009c1255bf18f88c688ac0a35bae16b5b0
-    commit: cf13e95e32d65a295c893f18fa1ffb67adecfd1f
+      sha256: 97c0107f5fc0ba9110483b51d2dc205a14addc6cd7ada832ab1266b10083f471
+    commit: 6fc48dc2683dc7705086153b9d1f31433e15d17a
   original:
     subdir: ghc-dump-core
     git: https://github.com/Tarmean/ghc-dump
-    commit: cf13e95e32d65a295c893f18fa1ffb67adecfd1f
+    commit: 6fc48dc2683dc7705086153b9d1f31433e15d17a
 - completed:
     subdir: ghc-dump-util
     name: ghc-dump-util
@@ -68,11 +68,11 @@ packages:
     pantry-tree:
       size: 562
       sha256: f880f36a54e26dede0f5f72b1be17944190e5a1a3ddeb42fc92ab384c9f80bdb
-    commit: cf13e95e32d65a295c893f18fa1ffb67adecfd1f
+    commit: 6fc48dc2683dc7705086153b9d1f31433e15d17a
   original:
     subdir: ghc-dump-util
     git: https://github.com/Tarmean/ghc-dump
-    commit: cf13e95e32d65a295c893f18fa1ffb67adecfd1f
+    commit: 6fc48dc2683dc7705086153b9d1f31433e15d17a
 - completed:
     hackage: Cabal-3.6.3.0@sha256:ff97c442b0c679c1c9876acd15f73ac4f602b973c45bde42b43ec28265ee48f4,12459
     pantry-tree:

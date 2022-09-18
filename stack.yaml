@@ -48,7 +48,7 @@ extra-deps:
 - git: https://github.com/jtdaugherty/vty
   commit: db5f55caf3321d9e015fa99cc41908c12ef172a5
 - git: https://github.com/Tarmean/ghc-dump
-  commit: cf13e95e32d65a295c893f18fa1ffb67adecfd1f
+  commit: 6fc48dc2683dc7705086153b9d1f31433e15d17a
   subdirs: 
     - ghc-dump-core
     - ghc-dump-util

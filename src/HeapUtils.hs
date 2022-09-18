@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dsuppress-uniques -O0 #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ImplicitParams #-}
@@ -12,6 +13,8 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveAnyClass #-}
 module HeapUtils where
+
+
 
 import GHC.HeapView
 import WhereFrom
@@ -61,14 +64,20 @@ instance {-# OVERLAPS #-} (PrintClosure r f b m) => PrintClosure r (NamedThunks 
 instance (PrintClosure r r (Maybe HeapGraphIndex) m, PrintClosure r f (HeapGraphEntry HeapData) m) =>  PrintClosure r (NamedThunks f) (HeapGraphEntry HeapData) m where
     pClosImpl prec hge = case hgeClosure hge of
       ThunkClosure {..} 
-        | HeapData { hsourceLoc =Just From {ipName = nam}} <- hgeData hge -> do
+        | Just nam <- toName (hgeData hge) -> do
             ptrs <-  traverse (self . pClos 10) ptrArgs
             pure $ app prec $ pretty nam :ptrs <> map pretty dataArgs
       FunClosure {..} 
-        | HeapData {hsourceLoc = Just From {ipName = nam}} <- hgeData hge -> do
+        | Just nam <- toName (hgeData hge) -> do
             ptrs <- traverse (self . pClos 10) ptrArgs
             pure $ app prec $ pretty nam : ptrs <> map pretty dataArgs
       _ -> super (pClos prec hge)
+      where
+        toName HeapData {hsourceLoc = Just From {ipName = nam, ipLabel =lab}}
+          | not (T.null lab) = Just lab
+          | otherwise = Just nam
+        toName _ = Nothing
+        
 instance (PrintClosure r r (GenClosure (Maybe HeapGraphIndex)) m) =>  PrintClosure r Base (HeapGraphEntry HeapData) m where
      pClosImpl prec hge = self (pClos prec (hgeClosure hge))
 
@@ -165,8 +174,8 @@ instance (PrintClosure r r b m) => PrintClosure r Base (GenClosure b) m where
         _ | Just vs <- isTup c ->
             fmap tupled (traverse (showBox 1) vs)
         ConstrClosure {..} -> do
-            ptrs <- traverse (showBox 10) ptrArgs
-            pure $ app prec $ pretty name : ptrs <> map pretty dataArgs
+            ptrs <- traverse (showBox 0) ptrArgs
+            pure $ pretty name <+> braces (align $ sep $ punctuate comma (ptrs <> map pretty dataArgs))
         ThunkClosure {..} -> do
             ptrs <- traverse (showBox 10) ptrArgs
             pure $ app prec $ "_thunk" : ptrs <> map pretty dataArgs
@@ -230,11 +239,11 @@ instance (PrintClosure r r (HeapKV t) m, MonadHeapPrint t m) => PrintClosure r B
         binds <- getHeapBindings
         HeapGraph nodes <- getHeapContent
         let
-            reachability :: IM.IntMap IS.IntSet
-            reachability = IM.fromListWith (<>) (IM.toList (IM.map (IS.fromList . catMaybes . F.toList  . hgeClosure) nodes) <> [(k, reachable v) | (k,vs) <- IM.toList nodes, Just v <- F.toList (hgeClosure vs)])
-            reachable :: HeapGraphIndex -> IS.IntSet
-            reachable x = IM.findWithDefault mempty x reachability
-        kv <- forM  ((r:) $ filter (`IM.member` binds) $ IS.toList $ reachable r) $ \k -> do
+            -- reachability :: IM.IntMap IS.IntSet
+            -- reachability = IM.fromListWith (<>) (IM.toList (IM.map (IS.fromList . catMaybes . F.toList  . hgeClosure) nodes) <> [(k, reachable v) | (k,vs) <- IM.toList nodes, Just v <- F.toList (hgeClosure vs)])
+            -- reachable :: HeapGraphIndex -> IS.IntSet
+            -- reachable _ = IM.keys nodes -- IM.findWithDefault mempty x reachability
+        kv <- forM  (filter (`IM.member` binds) $ IM.keys nodes) $ \k -> do
             self $ pClos 0 (HeapKV k (binds !!! k) (nodes !!! k))
         
         if IM.member r binds
@@ -273,6 +282,7 @@ instance (PrintClosure r x (HeapGraphIndex) m, MonadDecorate m)  => PrintClosure
 instance {-# OVERLAPS #-}(PrintClosure r x b m, MonadDecorate m)  => PrintClosure r (DecorateElems x) b m where
     pClosImpl prec idx = super (pClos prec idx)
 
+-- type Printer = Elide HeapData Base
 type Printer = PrettyText (DecorateElems (Elide HeapData (PrettyListLiterals (NamedThunks Base))))
 printClosure :: forall r f m. (PrintClosure r r f m) => Int -> f -> m (Doc Attr)
 printClosure prec f = let ?printBase = proxy# @r in self (pClos prec f)
