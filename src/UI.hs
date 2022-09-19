@@ -21,13 +21,14 @@ import Control.Monad.Trans
 import Graphics.Vty.Attributes (defAttr)
 import qualified Graphics.Vty.Input as Inp
 import Brick.Widgets.Border
-import Brick.Widgets.Core (hLimitPercent, vLimitPercent)
+import Brick.Widgets.Core (hLimitPercent, vLimitPercent, translateBy)
 import Brick.Types (availWidthL)
+import qualified Brick.Types as B
 import Control.Monad.Reader (withReaderT)
 import GHC.Stack.CCS as Stack
 import State
 import HeapUtils (traverseHeapGraph, traverseHeapEntry, childrenOf, ppHeapGraph')
-import WhereFrom (mkFrom, From (From, ipLoc), Location (..))
+import WhereFrom (mkFrom, From (..), Location (..))
 import AsyncRequests (runCachingT, mkCache)
 import Brick.BChan (BChan, newBChan)
 import Graphics.Vty (mkVty, withStyle, bold, red, withForeColor)
@@ -103,7 +104,10 @@ wrapping i = unlines . chunksOf . words
       where (l,r) = L.span ((<= i) . fst) (addLen xs)
 
 rCore :: AppState -> Widget ViewPorts
-rCore AppState { _renderState = RenderState { _astContent = Just vs }} = border $ clickable ViewPortCore $ viewport ViewPortCore Vertical $ vBox ( map (raw . PPVty.render . pretty) vs)
+rCore AppState { _renderState = RenderState { _astContent = Just vs, _fileImportant = frm}} = 
+  (strWrap (show frm) <=>)  $
+  border $ clickable ViewPortCore $ viewport ViewPortCore Vertical $ 
+    vBox ( map (raw . PPVty.render . pretty) vs)
 rCore _ = border $ strWrap "NO CORE LOADED"
 
 showLoc :: WhereFrom.Location -> String
@@ -116,10 +120,10 @@ showLoc WhereFrom.Location { lFile, lStart = (a,b), lEnd = (c,d)}
 data ViewPorts = ViewPortFile | ViewPortHeap | ViewPortCore
   deriving (Eq, Ord, Show)
 rFile :: AppState -> Widget ViewPorts
-rFile AppState { _renderState = RenderState { _fileContent = Just vs, _fileImportant = Just From{ipLoc = Just loc@WhereFrom.Location{lStart=(l,_), lEnd=(r,_)}}} }
-  = border $
+rFile AppState { _renderState = RenderState { _fileContent = Just vs, _fileImportant = Just WhereFrom.From {WhereFrom.ipLoc = Just loc } }}
+  = (str (showLoc loc) <=>) $ border $
      clickable ViewPortFile $ viewport ViewPortFile Vertical $
-     vBox $ (str (showLoc loc):) $ map (strWrap . T.unpack) . V.toList $  slicing (l-2) r vs
+      (strWrap  $ unlines $ map T.unpack $ V.toList vs)
 rFile s = border $ str ("? " <> show active <> ":\n" <> frm <> "\n" <> wrapping 70 snode)
   where
      active = s ^. coreState . activeNode  . to NE.head
@@ -161,11 +165,22 @@ app = App {
       Inp.MouseDown ViewPortCore Inp.BScrollUp _ _ -> vScrollBy (viewportScroll ViewPortCore) (-5)
       _ -> pure ()
      s <- get
+     let os = s
      s <- rebuildState s
+     setScrolls (os ^. renderState) (s ^. renderState)
      put s,
-  appStartEvent = return (),
+  appStartEvent = do
+      s <- get
+      setScrolls (RenderState Nothing Nothing Nothing) (s ^. renderState),
   appAttrMap = const $ attrMap defAttr []
   }
+  where
+    setScrolls os s = do
+      when (os ^. fileImportant /= s ^. fileImportant) $ do
+       case s ^. fileImportant of
+           Just (WhereFrom.From { ipLoc = Just WhereFrom.Location { lStart = (a,b)}}) -> do
+             setTop (viewportScroll ViewPortFile) a 
+           _ -> pure ()
 mkRelease p =
     case hSize p of
         Fixed -> Widget Greedy (hSize p) $

@@ -104,7 +104,7 @@ loadRenderState cs c = do
     ast <- runMaybeT $ do
           Just frm <- pure from
           let sl = ipMod frm
-          Just o <- MaybeT $ runCachingT c $ send (LoadGhcDump sl 25)
+          Just o <- MaybeT $ runCachingT c $ send (LoadGhcDump sl 10)
           pure (moduleTopBindings o)
         --   let 
         --     binderTxt = binderName  . unBndr 

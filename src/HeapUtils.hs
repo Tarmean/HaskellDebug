@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dsuppress-uniques -O0 #-}
+{-# OPTIONS_GHC -O1 #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ImplicitParams #-}

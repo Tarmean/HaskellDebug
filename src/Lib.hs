@@ -1,6 +1,6 @@
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-uniques -fforce-recomp #-}
+-- {-# OPTIONS_GHC -ddump-simpl -dsuppress-uniques -fforce-recomp #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
--- {-# OPTIONS_GHC -fplugin GhcDump.Plugin #-}
+{-# OPTIONS_GHC -fplugin GhcDump.Plugin #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Lib
@@ -9,13 +9,16 @@ module Lib
     ) where
 
 import UI ( printValue )
-import State (runRequest, Requests (LoadGhcDump))
-import Data.Text.Prettyprint.Doc (pretty)
+-- import State (runRequest, Requests (LoadGhcDump))
+-- import Data.Text.Prettyprint.Doc (pretty)
 
 someFunc :: IO ()
 someFunc = do
-   r <- runRequest (LoadGhcDump "Lib" 25)
-   printValue r
+   printValue (badFoldr [1..10])
+
+badFoldr :: [Int] -> (Int, Int)
+badFoldr = foldr  (\x (a,b) -> (a+1, b+x)) (0,0)
+  --  r <- runRequest (LoadGhcDump "Lib" 25)
   --  let 
   --    {-# NOINLINE as #-}
   --    as = [1..10]
