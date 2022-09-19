@@ -39,11 +39,12 @@ data HeapData = HeapData { hsourceLoc :: Maybe From, hwhoCreated ::  [String] }
   deriving  (Eq, Ord, Show)
 data CoreState = CoreState {
   _heapGraph :: Heap.HeapGraph HeapData,
-  _activeNode :: NonEmpty Heap.HeapGraphIndex
+  _activeNode :: NonEmpty Heap.HeapGraphIndex,
+  _coreKind :: Int
 } deriving (Show)
 data RenderState = RenderState {
     _fileContent :: Maybe (V.Vector T.Text),
-    _astContent :: Maybe [TopBinding],
+    _astContent :: Maybe Module,
     _fileImportant :: Maybe From
 } deriving Show
 data Requests a where
@@ -60,6 +61,8 @@ heapGraph = lens _heapGraph (\s v -> s { _heapGraph = v })
 activeNode :: Lens' CoreState (NonEmpty Heap.HeapGraphIndex)
 activeNode = lens _activeNode (\s v -> s { _activeNode = v })
 fileContent :: Lens' RenderState (Maybe (V.Vector T.Text))
+coreKind :: Lens' CoreState Int
+coreKind = lens _coreKind (\s v -> s { _coreKind = v })
 fileContent = lens _fileContent (\s v -> s { _fileContent = v })
 fileImportant :: Lens' RenderState (Maybe From)
 fileImportant = lens _fileImportant (\s v -> s { _fileImportant = v })
@@ -104,8 +107,8 @@ loadRenderState cs c = do
     ast <- runMaybeT $ do
           Just frm <- pure from
           let sl = ipMod frm
-          Just o <- MaybeT $ runCachingT c $ send (LoadGhcDump sl 10)
-          pure (moduleTopBindings o)
+          Just o <- MaybeT $ runCachingT c $ send (LoadGhcDump sl (_coreKind cs))
+          pure o
         --   let 
         --     binderTxt = binderName  . unBndr 
         --     hasBinder s (NonRecTopBinding b _ _) = T.isInfixOf s (binderTxt b)

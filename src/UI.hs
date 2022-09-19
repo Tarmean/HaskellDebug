@@ -47,6 +47,7 @@ import qualified Brick as Inp
 import qualified Graphics.Vty.Output.Interface as Vty
 import qualified Graphics.Vty as Vty
 import Control.Monad (when)
+import GhcDump.Ast (Module' (..), getModuleName)
 
 
 type Label = ()
@@ -105,9 +106,14 @@ wrapping i = unlines . chunksOf . words
 
 rCore :: AppState -> Widget ViewPorts
 rCore AppState { _renderState = RenderState { _astContent = Just vs, _fileImportant = frm}} = 
-  (strWrap (show frm) <=>)  $
+  (strWrap ("Module " <> T.unpack (getModuleName (moduleName vs)) <> "\n" <> T.unpack (modulePhase vs) <> " " <> show (modulePhaseId vs)) <=>)  $
   border $ clickable ViewPortCore $ viewport ViewPortCore Vertical $ 
-    vBox ( map (raw . PPVty.render . pretty) vs)
+    vBox ( map (raw . PPVty.render . pretty) (moduleTopBindings vs))
+  where
+    --  tLoc
+    --    = case ipLoc frm of
+    --       Nothing -> ""
+    --       Jusst x ->prettyLoc x
 rCore _ = border $ strWrap "NO CORE LOADED"
 
 showLoc :: WhereFrom.Location -> String
@@ -156,6 +162,8 @@ app = App {
       VtyEvent (Inp.EvKey (Inp.KChar 'h') []) -> moveToSibling (-1)
       VtyEvent (Inp.EvKey (Inp.KChar 'k') []) -> moveToParent
       VtyEvent (Inp.EvKey (Inp.KChar 'r') []) -> forceAndReload
+      VtyEvent (Inp.EvKey (Inp.KChar '+') []) -> coreState . coreKind += 1
+      VtyEvent (Inp.EvKey (Inp.KChar '-') []) -> coreState . coreKind -= 1
       VtyEvent (Inp.EvKey Inp.KEsc []) -> halt
       Inp.MouseDown ViewPortFile Inp.BScrollDown _ _ -> vScrollBy (viewportScroll ViewPortFile) 5
       Inp.MouseDown ViewPortFile Inp.BScrollUp _ _ -> vScrollBy (viewportScroll ViewPortFile) (-5)
@@ -257,7 +265,7 @@ printValue :: a -> IO ()
 printValue a = do
   cache <- mkCache runRequest (\_ -> pure ())
   hg <- mkCoreState (Heap.asBox a)
-  let core = CoreState hg (0 NE.:| [])
+  let core = CoreState hg (0 NE.:| []) 1
   render <- loadRenderState core cache
   let s = AppState core render cache
   -- print (core,render)

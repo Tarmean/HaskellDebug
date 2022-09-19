@@ -1,4 +1,5 @@
--- {-# OPTIONS_GHC -ddump-simpl -dsuppress-uniques -fforce-recomp #-}
+{-# OPTIONS_GHC -ddump-prep #-}
+-- {-# OPTIONS_GHC -ddump-stg-final #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -fplugin GhcDump.Plugin #-}
 {-# LANGUAGE OverloadedStrings #-}
