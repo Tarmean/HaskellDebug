@@ -1,7 +1,6 @@
-{-# OPTIONS_GHC -ddump-prep #-}
--- {-# OPTIONS_GHC -ddump-stg-final #-}
+{-# OPTIONS_GHC -ddump-prep  -ddump-to-file -dsuppress-all #-}
+
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# OPTIONS_GHC -fplugin GhcDump.Plugin #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Lib
@@ -10,52 +9,17 @@ module Lib
     ) where
 
 import UI ( printValue )
--- import State (runRequest, Requests (LoadGhcDump))
--- import Data.Text.Prettyprint.Doc (pretty)
-
+                                                    
+                                            
 someFunc :: IO ()
-someFunc = do
-   printValue (badFoldr [1..10])
+someFunc = printValue (sieve [2..])
 
-badFoldr :: [Int] -> (Int, Int)
-badFoldr = foldr  (\x (a,b) -> (a+1, b+x)) (0,0)
-  --  r <- runRequest (LoadGhcDump "Lib" 25)
-  --  let 
-  --    {-# NOINLINE as #-}
-  --    as = [1..10]
-  --    {-# NOINLINE xs #-}
-  --    xs = foo . filter even  $ as
-  --  xs `seq` pure ()
-  --  printValue xs
-{-# NOINLINE foo #-}
-foo :: [Int] -> [Int]
-foo ls =  scanl (+) 0 (map (*2) ls)
+nthPrimeIdx :: Int
+nthPrimeIdx = nthPrime - 1
 
+nthPrime :: Int
+nthPrime = 10001
 
-
--- debug :: a -> a
--- debug a = unsafePerformIO (putStrLn "dbg" >> printGraph >> printWhere) `seq` a
---   where
---     printGraph = print . ppHeapGraph =<< buildHeapGraph 20 () (asBox a)
---     printWhere = putStrLn (prettyAny a)
--- {-# NOINLINE debug #-}
-
-
-
--- prettyAny :: a -> String
--- prettyAny a = T.unpack source <> " :: " <> typ <> show x
---   where
---     x@[coreName, ident, typ, context, mod, loc] = unsafePerformIO (whereFrom a)
---     source 
---       | null loc = "<?>"
---       | otherwise = sourceString (T.pack loc)
-
--- sourceString :: Loc -> T.Text
--- sourceString loc = theSlice 
---   where
---     (path, line, cols) = case T.splitOn ":" loc of
---       [a,b,c] -> (a,b,c)
---       o -> error $ "sourceString: " <> show loc <> ", " <> show o
---     [start, end] = map readT $ T.splitOn "-" cols
---     theLine = unsafePerformIO (retrieveCache (T.unpack path)) V.! (readT line - 1)
---     theSlice = T.take (end - start+1) (T.drop (start-1) theLine)
+sieve :: [Int] -> [Int]
+sieve [] = [] -- added
+sieve (p:xs) = p : sieve [x | x <- xs, x `mod` p /= 0]

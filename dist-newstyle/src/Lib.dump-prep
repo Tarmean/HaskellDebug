@@ -1,0 +1,824 @@
+
+==================== CorePrep ====================
+
+Result size of CorePrep
+  = {terms: 763, types: 321, coercions: 15, joins: 0/21}
+
+$trModule4 = "HaskellDebug-0.1.0.0-5SCcCbvS7Jv6ivW2snQoVH"#
+
+$trModule3 = TrNameS $trModule4
+
+$trModule2 = "Lib"#
+
+$trModule1 = TrNameS $trModule2
+
+$trModule = Module $trModule3 $trModule1
+
+Rec {
+sieve
+  = \ ds_srMe ->
+      case ds_srMe of {
+        [] -> [];
+        : p_srMg xs_srMh ->
+          let {
+            sat_srNJ
+              = case xs_srMh of {
+                  [] -> [];
+                  : y_srMj ys_srMk ->
+                    case y_srMj of { I# ipv_srMm ->
+                    case p_srMg of { I# x_srMo ->
+                    case x_srMo of wild3_srMp {
+                      __DEFAULT ->
+                        case remInt# ipv_srMm wild3_srMp of r#_srMq {
+                          __DEFAULT ->
+                            case <# wild3_srMp 0# of yn#_srMr { __DEFAULT ->
+                            case ># ipv_srMm 0# of sat_srMv { __DEFAULT ->
+                            case andI# sat_srMv yn#_srMr of sat_srMw { __DEFAULT ->
+                            case notI# yn#_srMr of sat_srMt { __DEFAULT ->
+                            case <# ipv_srMm 0# of sat_srMs { __DEFAULT ->
+                            case andI# sat_srMs sat_srMt of sat_srMu { __DEFAULT ->
+                            case orI# sat_srMu sat_srMw of sat_srMx { __DEFAULT ->
+                            case andI# sat_srMx 1# of sat_srMy { __DEFAULT ->
+                            case -# 0# sat_srMy of sat_srMz { __DEFAULT ->
+                            case andI# sat_srMz wild3_srMp of sat_srMA { __DEFAULT ->
+                            case +# r#_srMq sat_srMA of {
+                              __DEFAULT ->
+                                let {
+                                  sat_srMV
+                                    = letrec {
+                                        go1_srMC
+                                          = \ ds1_srMD ->
+                                              case ds1_srMD of {
+                                                [] -> [];
+                                                : y1_srMF ys1_srMG ->
+                                                  case y1_srMF of a2_srMH { I# ipv1_srMI ->
+                                                  case remInt# ipv1_srMI wild3_srMp of r#1_srMJ {
+                                                    __DEFAULT ->
+                                                      case ># ipv1_srMI 0# of sat_srMN
+                                                      { __DEFAULT ->
+                                                      case andI# sat_srMN yn#_srMr of sat_srMO
+                                                      { __DEFAULT ->
+                                                      case notI# yn#_srMr of sat_srML { __DEFAULT ->
+                                                      case <# ipv1_srMI 0# of sat_srMK
+                                                      { __DEFAULT ->
+                                                      case andI# sat_srMK sat_srML of sat_srMM
+                                                      { __DEFAULT ->
+                                                      case orI# sat_srMM sat_srMO of sat_srMP
+                                                      { __DEFAULT ->
+                                                      case andI# sat_srMP 1# of sat_srMQ
+                                                      { __DEFAULT ->
+                                                      case -# 0# sat_srMQ of sat_srMR { __DEFAULT ->
+                                                      case andI# sat_srMR wild3_srMp of sat_srMS
+                                                      { __DEFAULT ->
+                                                      case +# r#1_srMJ sat_srMS of {
+                                                        __DEFAULT ->
+                                                          let { sat_srMU = go1_srMC ys1_srMG } in
+                                                          : a2_srMH sat_srMU;
+                                                        0# -> go1_srMC ys1_srMG
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      };
+                                                    0# -> go1_srMC ys1_srMG
+                                                  }
+                                                  }
+                                              }; } in
+                                      go1_srMC ys_srMk } in
+                                someFunc_$ssieve ipv_srMm sat_srMV;
+                              0# ->
+                                letrec {
+                                  go1_srMW
+                                    = \ ds1_srMX ->
+                                        case ds1_srMX of {
+                                          [] -> [];
+                                          : y1_srMZ ys1_srN0 ->
+                                            case y1_srMZ of a2_srN1 { I# ipv1_srN2 ->
+                                            case remInt# ipv1_srN2 wild3_srMp of r#1_srN3 {
+                                              __DEFAULT ->
+                                                case ># ipv1_srN2 0# of sat_srN7 { __DEFAULT ->
+                                                case andI# sat_srN7 yn#_srMr of sat_srN8
+                                                { __DEFAULT ->
+                                                case notI# yn#_srMr of sat_srN5 { __DEFAULT ->
+                                                case <# ipv1_srN2 0# of sat_srN4 { __DEFAULT ->
+                                                case andI# sat_srN4 sat_srN5 of sat_srN6
+                                                { __DEFAULT ->
+                                                case orI# sat_srN6 sat_srN8 of sat_srN9
+                                                { __DEFAULT ->
+                                                case andI# sat_srN9 1# of sat_srNa { __DEFAULT ->
+                                                case -# 0# sat_srNa of sat_srNb { __DEFAULT ->
+                                                case andI# sat_srNb wild3_srMp of sat_srNc
+                                                { __DEFAULT ->
+                                                case +# r#1_srN3 sat_srNc of {
+                                                  __DEFAULT ->
+                                                    let { sat_srNe = go1_srMW ys1_srN0 } in
+                                                    : a2_srN1 sat_srNe;
+                                                  0# -> go1_srMW ys1_srN0
+                                                }
+                                                }
+                                                }
+                                                }
+                                                }
+                                                }
+                                                }
+                                                }
+                                                }
+                                                };
+                                              0# -> go1_srMW ys1_srN0
+                                            }
+                                            }
+                                        }; } in
+                                case go1_srMW ys_srMk of sat_srNf { __DEFAULT -> sieve sat_srNf }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            };
+                          0# ->
+                            letrec {
+                              go1_srNg
+                                = \ ds1_srNh ->
+                                    case ds1_srNh of {
+                                      [] -> [];
+                                      : y1_srNj ys1_srNk ->
+                                        case y1_srNj of a2_srNl { I# ipv1_srNm ->
+                                        case remInt# ipv1_srNm wild3_srMp of r#1_srNn {
+                                          __DEFAULT ->
+                                            case <# wild3_srMp 0# of yn#_srNo { __DEFAULT ->
+                                            case ># ipv1_srNm 0# of sat_srNs { __DEFAULT ->
+                                            case andI# sat_srNs yn#_srNo of sat_srNt { __DEFAULT ->
+                                            case notI# yn#_srNo of sat_srNq { __DEFAULT ->
+                                            case <# ipv1_srNm 0# of sat_srNp { __DEFAULT ->
+                                            case andI# sat_srNp sat_srNq of sat_srNr { __DEFAULT ->
+                                            case orI# sat_srNr sat_srNt of sat_srNu { __DEFAULT ->
+                                            case andI# sat_srNu 1# of sat_srNv { __DEFAULT ->
+                                            case -# 0# sat_srNv of sat_srNw { __DEFAULT ->
+                                            case andI# sat_srNw wild3_srMp of sat_srNx
+                                            { __DEFAULT ->
+                                            case +# r#1_srNn sat_srNx of {
+                                              __DEFAULT ->
+                                                let { sat_srNz = go1_srNg ys1_srNk } in
+                                                : a2_srNl sat_srNz;
+                                              0# -> go1_srNg ys1_srNk
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            };
+                                          0# -> go1_srNg ys1_srNk
+                                        }
+                                        }
+                                    }; } in
+                            case go1_srNg ys_srMk of sat_srNA { __DEFAULT -> sieve sat_srNA }
+                        };
+                      -1# ->
+                        letrec {
+                          go1_srNB
+                            = \ ds1_srNC ->
+                                case ds1_srNC of {
+                                  [] -> [];
+                                  : y1_srNE ys1_srNF ->
+                                    case y1_srNE of { I# _ -> go1_srNB ys1_srNF }
+                                }; } in
+                        case go1_srNB ys_srMk of sat_srNI { __DEFAULT -> sieve sat_srNI };
+                      0# -> divZeroError `cast` <Co:6> :: (forall a. a) ~R# [Int]
+                    }
+                    }
+                    }
+                } } in
+          : p_srMg sat_srNJ
+      }
+
+someFunc_$ssieve
+  = \ sc_srNK sc1_srNL ->
+      let {
+        sat_srPc
+          = case sc1_srNL of {
+              [] -> [];
+              : y_srNO ys_srNP ->
+                case y_srNO of { I# ipv_srNR ->
+                case sc_srNK of wild1_srNS {
+                  __DEFAULT ->
+                    case remInt# ipv_srNR wild1_srNS of r#_srNT {
+                      __DEFAULT ->
+                        case <# wild1_srNS 0# of yn#_srNU { __DEFAULT ->
+                        case ># ipv_srNR 0# of sat_srNY { __DEFAULT ->
+                        case andI# sat_srNY yn#_srNU of sat_srNZ { __DEFAULT ->
+                        case notI# yn#_srNU of sat_srNW { __DEFAULT ->
+                        case <# ipv_srNR 0# of sat_srNV { __DEFAULT ->
+                        case andI# sat_srNV sat_srNW of sat_srNX { __DEFAULT ->
+                        case orI# sat_srNX sat_srNZ of sat_srO0 { __DEFAULT ->
+                        case andI# sat_srO0 1# of sat_srO1 { __DEFAULT ->
+                        case -# 0# sat_srO1 of sat_srO2 { __DEFAULT ->
+                        case andI# sat_srO2 wild1_srNS of sat_srO3 { __DEFAULT ->
+                        case +# r#_srNT sat_srO3 of {
+                          __DEFAULT ->
+                            let {
+                              sat_srOo
+                                = letrec {
+                                    go1_srO5
+                                      = \ ds_srO6 ->
+                                          case ds_srO6 of {
+                                            [] -> [];
+                                            : y1_srO8 ys1_srO9 ->
+                                              case y1_srO8 of a2_srOa { I# ipv1_srOb ->
+                                              case remInt# ipv1_srOb wild1_srNS of r#1_srOc {
+                                                __DEFAULT ->
+                                                  case ># ipv1_srOb 0# of sat_srOg { __DEFAULT ->
+                                                  case andI# sat_srOg yn#_srNU of sat_srOh
+                                                  { __DEFAULT ->
+                                                  case notI# yn#_srNU of sat_srOe { __DEFAULT ->
+                                                  case <# ipv1_srOb 0# of sat_srOd { __DEFAULT ->
+                                                  case andI# sat_srOd sat_srOe of sat_srOf
+                                                  { __DEFAULT ->
+                                                  case orI# sat_srOf sat_srOh of sat_srOi
+                                                  { __DEFAULT ->
+                                                  case andI# sat_srOi 1# of sat_srOj { __DEFAULT ->
+                                                  case -# 0# sat_srOj of sat_srOk { __DEFAULT ->
+                                                  case andI# sat_srOk wild1_srNS of sat_srOl
+                                                  { __DEFAULT ->
+                                                  case +# r#1_srOc sat_srOl of {
+                                                    __DEFAULT ->
+                                                      let { sat_srOn = go1_srO5 ys1_srO9 } in
+                                                      : a2_srOa sat_srOn;
+                                                    0# -> go1_srO5 ys1_srO9
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  };
+                                                0# -> go1_srO5 ys1_srO9
+                                              }
+                                              }
+                                          }; } in
+                                  go1_srO5 ys_srNP } in
+                            someFunc_$ssieve ipv_srNR sat_srOo;
+                          0# ->
+                            letrec {
+                              go1_srOp
+                                = \ ds_srOq ->
+                                    case ds_srOq of {
+                                      [] -> [];
+                                      : y1_srOs ys1_srOt ->
+                                        case y1_srOs of a2_srOu { I# ipv1_srOv ->
+                                        case remInt# ipv1_srOv wild1_srNS of r#1_srOw {
+                                          __DEFAULT ->
+                                            case ># ipv1_srOv 0# of sat_srOA { __DEFAULT ->
+                                            case andI# sat_srOA yn#_srNU of sat_srOB { __DEFAULT ->
+                                            case notI# yn#_srNU of sat_srOy { __DEFAULT ->
+                                            case <# ipv1_srOv 0# of sat_srOx { __DEFAULT ->
+                                            case andI# sat_srOx sat_srOy of sat_srOz { __DEFAULT ->
+                                            case orI# sat_srOz sat_srOB of sat_srOC { __DEFAULT ->
+                                            case andI# sat_srOC 1# of sat_srOD { __DEFAULT ->
+                                            case -# 0# sat_srOD of sat_srOE { __DEFAULT ->
+                                            case andI# sat_srOE wild1_srNS of sat_srOF
+                                            { __DEFAULT ->
+                                            case +# r#1_srOw sat_srOF of {
+                                              __DEFAULT ->
+                                                let { sat_srOH = go1_srOp ys1_srOt } in
+                                                : a2_srOu sat_srOH;
+                                              0# -> go1_srOp ys1_srOt
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            };
+                                          0# -> go1_srOp ys1_srOt
+                                        }
+                                        }
+                                    }; } in
+                            case go1_srOp ys_srNP of sat_srOI { __DEFAULT -> sieve sat_srOI }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        };
+                      0# ->
+                        letrec {
+                          go1_srOJ
+                            = \ ds_srOK ->
+                                case ds_srOK of {
+                                  [] -> [];
+                                  : y1_srOM ys1_srON ->
+                                    case y1_srOM of a2_srOO { I# ipv1_srOP ->
+                                    case remInt# ipv1_srOP wild1_srNS of r#1_srOQ {
+                                      __DEFAULT ->
+                                        case <# wild1_srNS 0# of yn#_srOR { __DEFAULT ->
+                                        case ># ipv1_srOP 0# of sat_srOV { __DEFAULT ->
+                                        case andI# sat_srOV yn#_srOR of sat_srOW { __DEFAULT ->
+                                        case notI# yn#_srOR of sat_srOT { __DEFAULT ->
+                                        case <# ipv1_srOP 0# of sat_srOS { __DEFAULT ->
+                                        case andI# sat_srOS sat_srOT of sat_srOU { __DEFAULT ->
+                                        case orI# sat_srOU sat_srOW of sat_srOX { __DEFAULT ->
+                                        case andI# sat_srOX 1# of sat_srOY { __DEFAULT ->
+                                        case -# 0# sat_srOY of sat_srOZ { __DEFAULT ->
+                                        case andI# sat_srOZ wild1_srNS of sat_srP0 { __DEFAULT ->
+                                        case +# r#1_srOQ sat_srP0 of {
+                                          __DEFAULT ->
+                                            let { sat_srP2 = go1_srOJ ys1_srON } in
+                                            : a2_srOO sat_srP2;
+                                          0# -> go1_srOJ ys1_srON
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        };
+                                      0# -> go1_srOJ ys1_srON
+                                    }
+                                    }
+                                }; } in
+                        case go1_srOJ ys_srNP of sat_srP3 { __DEFAULT -> sieve sat_srP3 }
+                    };
+                  -1# ->
+                    letrec {
+                      go1_srP4
+                        = \ ds_srP5 ->
+                            case ds_srP5 of {
+                              [] -> [];
+                              : y1_srP7 ys1_srP8 -> case y1_srP7 of { I# _ -> go1_srP4 ys1_srP8 }
+                            }; } in
+                    case go1_srP4 ys_srNP of sat_srPb { __DEFAULT -> sieve sat_srPb };
+                  0# -> divZeroError `cast` <Co:6> :: (forall a. a) ~R# [Int]
+                }
+                }
+            } } in
+      let { sat_srNM = I# sc_srNK } in : sat_srNM sat_srPc
+end Rec }
+
+Rec {
+someFunc_go3
+  = \ x_srPd ->
+      let {
+        sat_srPh
+          = case x_srPd of wild_srPf {
+              __DEFAULT ->
+                case +# wild_srPf 1# of sat_srPg { __DEFAULT ->
+                someFunc_go3 sat_srPg
+                };
+              9223372036854775807# -> []
+            } } in
+      let { sat_srPe = I# x_srPd } in : sat_srPe sat_srPh
+end Rec }
+
+someFunc2
+  = case someFunc_go3 2# of sat_srPi { __DEFAULT -> sieve sat_srPi }
+
+someFunc1 = \ eta_B0 -> printValue1 someFunc2 eta_B0
+
+someFunc
+  = (\ eta_B0 -> someFunc1 eta_B0)
+    `cast` <Co:3> :: (State# RealWorld -> (# State# RealWorld, () #))
+                     ~R# IO ()
+
+
+
+==================== CorePrep ====================
+
+Result size of CorePrep
+  = {terms: 763, types: 321, coercions: 15, joins: 0/21}
+
+$trModule4 = "HaskellDebug-0.1.0.0-5SCcCbvS7Jv6ivW2snQoVH"#
+
+$trModule3 = TrNameS $trModule4
+
+$trModule2 = "Lib"#
+
+$trModule1 = TrNameS $trModule2
+
+$trModule = Module $trModule3 $trModule1
+
+Rec {
+sieve
+  = \ ds_sszR ->
+      case ds_sszR of {
+        [] -> [];
+        : p_sszT xs_sszU ->
+          let {
+            sat_ssBm
+              = case xs_sszU of {
+                  [] -> [];
+                  : y_sszW ys_sszX ->
+                    case y_sszW of { I# ipv_sszZ ->
+                    case p_sszT of { I# x_ssA1 ->
+                    case x_ssA1 of wild3_ssA2 {
+                      __DEFAULT ->
+                        case remInt# ipv_sszZ wild3_ssA2 of r#_ssA3 {
+                          __DEFAULT ->
+                            case <# wild3_ssA2 0# of yn#_ssA4 { __DEFAULT ->
+                            case ># ipv_sszZ 0# of sat_ssA8 { __DEFAULT ->
+                            case andI# sat_ssA8 yn#_ssA4 of sat_ssA9 { __DEFAULT ->
+                            case notI# yn#_ssA4 of sat_ssA6 { __DEFAULT ->
+                            case <# ipv_sszZ 0# of sat_ssA5 { __DEFAULT ->
+                            case andI# sat_ssA5 sat_ssA6 of sat_ssA7 { __DEFAULT ->
+                            case orI# sat_ssA7 sat_ssA9 of sat_ssAa { __DEFAULT ->
+                            case andI# sat_ssAa 1# of sat_ssAb { __DEFAULT ->
+                            case -# 0# sat_ssAb of sat_ssAc { __DEFAULT ->
+                            case andI# sat_ssAc wild3_ssA2 of sat_ssAd { __DEFAULT ->
+                            case +# r#_ssA3 sat_ssAd of {
+                              __DEFAULT ->
+                                let {
+                                  sat_ssAy
+                                    = letrec {
+                                        go1_ssAf
+                                          = \ ds1_ssAg ->
+                                              case ds1_ssAg of {
+                                                [] -> [];
+                                                : y1_ssAi ys1_ssAj ->
+                                                  case y1_ssAi of a2_ssAk { I# ipv1_ssAl ->
+                                                  case remInt# ipv1_ssAl wild3_ssA2 of r#1_ssAm {
+                                                    __DEFAULT ->
+                                                      case ># ipv1_ssAl 0# of sat_ssAq
+                                                      { __DEFAULT ->
+                                                      case andI# sat_ssAq yn#_ssA4 of sat_ssAr
+                                                      { __DEFAULT ->
+                                                      case notI# yn#_ssA4 of sat_ssAo { __DEFAULT ->
+                                                      case <# ipv1_ssAl 0# of sat_ssAn
+                                                      { __DEFAULT ->
+                                                      case andI# sat_ssAn sat_ssAo of sat_ssAp
+                                                      { __DEFAULT ->
+                                                      case orI# sat_ssAp sat_ssAr of sat_ssAs
+                                                      { __DEFAULT ->
+                                                      case andI# sat_ssAs 1# of sat_ssAt
+                                                      { __DEFAULT ->
+                                                      case -# 0# sat_ssAt of sat_ssAu { __DEFAULT ->
+                                                      case andI# sat_ssAu wild3_ssA2 of sat_ssAv
+                                                      { __DEFAULT ->
+                                                      case +# r#1_ssAm sat_ssAv of {
+                                                        __DEFAULT ->
+                                                          let { sat_ssAx = go1_ssAf ys1_ssAj } in
+                                                          : a2_ssAk sat_ssAx;
+                                                        0# -> go1_ssAf ys1_ssAj
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      }
+                                                      };
+                                                    0# -> go1_ssAf ys1_ssAj
+                                                  }
+                                                  }
+                                              }; } in
+                                      go1_ssAf ys_sszX } in
+                                someFunc_$ssieve ipv_sszZ sat_ssAy;
+                              0# ->
+                                letrec {
+                                  go1_ssAz
+                                    = \ ds1_ssAA ->
+                                        case ds1_ssAA of {
+                                          [] -> [];
+                                          : y1_ssAC ys1_ssAD ->
+                                            case y1_ssAC of a2_ssAE { I# ipv1_ssAF ->
+                                            case remInt# ipv1_ssAF wild3_ssA2 of r#1_ssAG {
+                                              __DEFAULT ->
+                                                case ># ipv1_ssAF 0# of sat_ssAK { __DEFAULT ->
+                                                case andI# sat_ssAK yn#_ssA4 of sat_ssAL
+                                                { __DEFAULT ->
+                                                case notI# yn#_ssA4 of sat_ssAI { __DEFAULT ->
+                                                case <# ipv1_ssAF 0# of sat_ssAH { __DEFAULT ->
+                                                case andI# sat_ssAH sat_ssAI of sat_ssAJ
+                                                { __DEFAULT ->
+                                                case orI# sat_ssAJ sat_ssAL of sat_ssAM
+                                                { __DEFAULT ->
+                                                case andI# sat_ssAM 1# of sat_ssAN { __DEFAULT ->
+                                                case -# 0# sat_ssAN of sat_ssAO { __DEFAULT ->
+                                                case andI# sat_ssAO wild3_ssA2 of sat_ssAP
+                                                { __DEFAULT ->
+                                                case +# r#1_ssAG sat_ssAP of {
+                                                  __DEFAULT ->
+                                                    let { sat_ssAR = go1_ssAz ys1_ssAD } in
+                                                    : a2_ssAE sat_ssAR;
+                                                  0# -> go1_ssAz ys1_ssAD
+                                                }
+                                                }
+                                                }
+                                                }
+                                                }
+                                                }
+                                                }
+                                                }
+                                                }
+                                                };
+                                              0# -> go1_ssAz ys1_ssAD
+                                            }
+                                            }
+                                        }; } in
+                                case go1_ssAz ys_sszX of sat_ssAS { __DEFAULT -> sieve sat_ssAS }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            }
+                            };
+                          0# ->
+                            letrec {
+                              go1_ssAT
+                                = \ ds1_ssAU ->
+                                    case ds1_ssAU of {
+                                      [] -> [];
+                                      : y1_ssAW ys1_ssAX ->
+                                        case y1_ssAW of a2_ssAY { I# ipv1_ssAZ ->
+                                        case remInt# ipv1_ssAZ wild3_ssA2 of r#1_ssB0 {
+                                          __DEFAULT ->
+                                            case <# wild3_ssA2 0# of yn#_ssB1 { __DEFAULT ->
+                                            case ># ipv1_ssAZ 0# of sat_ssB5 { __DEFAULT ->
+                                            case andI# sat_ssB5 yn#_ssB1 of sat_ssB6 { __DEFAULT ->
+                                            case notI# yn#_ssB1 of sat_ssB3 { __DEFAULT ->
+                                            case <# ipv1_ssAZ 0# of sat_ssB2 { __DEFAULT ->
+                                            case andI# sat_ssB2 sat_ssB3 of sat_ssB4 { __DEFAULT ->
+                                            case orI# sat_ssB4 sat_ssB6 of sat_ssB7 { __DEFAULT ->
+                                            case andI# sat_ssB7 1# of sat_ssB8 { __DEFAULT ->
+                                            case -# 0# sat_ssB8 of sat_ssB9 { __DEFAULT ->
+                                            case andI# sat_ssB9 wild3_ssA2 of sat_ssBa
+                                            { __DEFAULT ->
+                                            case +# r#1_ssB0 sat_ssBa of {
+                                              __DEFAULT ->
+                                                let { sat_ssBc = go1_ssAT ys1_ssAX } in
+                                                : a2_ssAY sat_ssBc;
+                                              0# -> go1_ssAT ys1_ssAX
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            };
+                                          0# -> go1_ssAT ys1_ssAX
+                                        }
+                                        }
+                                    }; } in
+                            case go1_ssAT ys_sszX of sat_ssBd { __DEFAULT -> sieve sat_ssBd }
+                        };
+                      -1# ->
+                        letrec {
+                          go1_ssBe
+                            = \ ds1_ssBf ->
+                                case ds1_ssBf of {
+                                  [] -> [];
+                                  : y1_ssBh ys1_ssBi ->
+                                    case y1_ssBh of { I# _ -> go1_ssBe ys1_ssBi }
+                                }; } in
+                        case go1_ssBe ys_sszX of sat_ssBl { __DEFAULT -> sieve sat_ssBl };
+                      0# -> divZeroError `cast` <Co:6> :: (forall a. a) ~R# [Int]
+                    }
+                    }
+                    }
+                } } in
+          : p_sszT sat_ssBm
+      }
+
+someFunc_$ssieve
+  = \ sc_ssBn sc1_ssBo ->
+      let {
+        sat_ssCP
+          = case sc1_ssBo of {
+              [] -> [];
+              : y_ssBr ys_ssBs ->
+                case y_ssBr of { I# ipv_ssBu ->
+                case sc_ssBn of wild1_ssBv {
+                  __DEFAULT ->
+                    case remInt# ipv_ssBu wild1_ssBv of r#_ssBw {
+                      __DEFAULT ->
+                        case <# wild1_ssBv 0# of yn#_ssBx { __DEFAULT ->
+                        case ># ipv_ssBu 0# of sat_ssBB { __DEFAULT ->
+                        case andI# sat_ssBB yn#_ssBx of sat_ssBC { __DEFAULT ->
+                        case notI# yn#_ssBx of sat_ssBz { __DEFAULT ->
+                        case <# ipv_ssBu 0# of sat_ssBy { __DEFAULT ->
+                        case andI# sat_ssBy sat_ssBz of sat_ssBA { __DEFAULT ->
+                        case orI# sat_ssBA sat_ssBC of sat_ssBD { __DEFAULT ->
+                        case andI# sat_ssBD 1# of sat_ssBE { __DEFAULT ->
+                        case -# 0# sat_ssBE of sat_ssBF { __DEFAULT ->
+                        case andI# sat_ssBF wild1_ssBv of sat_ssBG { __DEFAULT ->
+                        case +# r#_ssBw sat_ssBG of {
+                          __DEFAULT ->
+                            let {
+                              sat_ssC1
+                                = letrec {
+                                    go1_ssBI
+                                      = \ ds_ssBJ ->
+                                          case ds_ssBJ of {
+                                            [] -> [];
+                                            : y1_ssBL ys1_ssBM ->
+                                              case y1_ssBL of a2_ssBN { I# ipv1_ssBO ->
+                                              case remInt# ipv1_ssBO wild1_ssBv of r#1_ssBP {
+                                                __DEFAULT ->
+                                                  case ># ipv1_ssBO 0# of sat_ssBT { __DEFAULT ->
+                                                  case andI# sat_ssBT yn#_ssBx of sat_ssBU
+                                                  { __DEFAULT ->
+                                                  case notI# yn#_ssBx of sat_ssBR { __DEFAULT ->
+                                                  case <# ipv1_ssBO 0# of sat_ssBQ { __DEFAULT ->
+                                                  case andI# sat_ssBQ sat_ssBR of sat_ssBS
+                                                  { __DEFAULT ->
+                                                  case orI# sat_ssBS sat_ssBU of sat_ssBV
+                                                  { __DEFAULT ->
+                                                  case andI# sat_ssBV 1# of sat_ssBW { __DEFAULT ->
+                                                  case -# 0# sat_ssBW of sat_ssBX { __DEFAULT ->
+                                                  case andI# sat_ssBX wild1_ssBv of sat_ssBY
+                                                  { __DEFAULT ->
+                                                  case +# r#1_ssBP sat_ssBY of {
+                                                    __DEFAULT ->
+                                                      let { sat_ssC0 = go1_ssBI ys1_ssBM } in
+                                                      : a2_ssBN sat_ssC0;
+                                                    0# -> go1_ssBI ys1_ssBM
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  }
+                                                  };
+                                                0# -> go1_ssBI ys1_ssBM
+                                              }
+                                              }
+                                          }; } in
+                                  go1_ssBI ys_ssBs } in
+                            someFunc_$ssieve ipv_ssBu sat_ssC1;
+                          0# ->
+                            letrec {
+                              go1_ssC2
+                                = \ ds_ssC3 ->
+                                    case ds_ssC3 of {
+                                      [] -> [];
+                                      : y1_ssC5 ys1_ssC6 ->
+                                        case y1_ssC5 of a2_ssC7 { I# ipv1_ssC8 ->
+                                        case remInt# ipv1_ssC8 wild1_ssBv of r#1_ssC9 {
+                                          __DEFAULT ->
+                                            case ># ipv1_ssC8 0# of sat_ssCd { __DEFAULT ->
+                                            case andI# sat_ssCd yn#_ssBx of sat_ssCe { __DEFAULT ->
+                                            case notI# yn#_ssBx of sat_ssCb { __DEFAULT ->
+                                            case <# ipv1_ssC8 0# of sat_ssCa { __DEFAULT ->
+                                            case andI# sat_ssCa sat_ssCb of sat_ssCc { __DEFAULT ->
+                                            case orI# sat_ssCc sat_ssCe of sat_ssCf { __DEFAULT ->
+                                            case andI# sat_ssCf 1# of sat_ssCg { __DEFAULT ->
+                                            case -# 0# sat_ssCg of sat_ssCh { __DEFAULT ->
+                                            case andI# sat_ssCh wild1_ssBv of sat_ssCi
+                                            { __DEFAULT ->
+                                            case +# r#1_ssC9 sat_ssCi of {
+                                              __DEFAULT ->
+                                                let { sat_ssCk = go1_ssC2 ys1_ssC6 } in
+                                                : a2_ssC7 sat_ssCk;
+                                              0# -> go1_ssC2 ys1_ssC6
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            }
+                                            };
+                                          0# -> go1_ssC2 ys1_ssC6
+                                        }
+                                        }
+                                    }; } in
+                            case go1_ssC2 ys_ssBs of sat_ssCl { __DEFAULT -> sieve sat_ssCl }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        }
+                        };
+                      0# ->
+                        letrec {
+                          go1_ssCm
+                            = \ ds_ssCn ->
+                                case ds_ssCn of {
+                                  [] -> [];
+                                  : y1_ssCp ys1_ssCq ->
+                                    case y1_ssCp of a2_ssCr { I# ipv1_ssCs ->
+                                    case remInt# ipv1_ssCs wild1_ssBv of r#1_ssCt {
+                                      __DEFAULT ->
+                                        case <# wild1_ssBv 0# of yn#_ssCu { __DEFAULT ->
+                                        case ># ipv1_ssCs 0# of sat_ssCy { __DEFAULT ->
+                                        case andI# sat_ssCy yn#_ssCu of sat_ssCz { __DEFAULT ->
+                                        case notI# yn#_ssCu of sat_ssCw { __DEFAULT ->
+                                        case <# ipv1_ssCs 0# of sat_ssCv { __DEFAULT ->
+                                        case andI# sat_ssCv sat_ssCw of sat_ssCx { __DEFAULT ->
+                                        case orI# sat_ssCx sat_ssCz of sat_ssCA { __DEFAULT ->
+                                        case andI# sat_ssCA 1# of sat_ssCB { __DEFAULT ->
+                                        case -# 0# sat_ssCB of sat_ssCC { __DEFAULT ->
+                                        case andI# sat_ssCC wild1_ssBv of sat_ssCD { __DEFAULT ->
+                                        case +# r#1_ssCt sat_ssCD of {
+                                          __DEFAULT ->
+                                            let { sat_ssCF = go1_ssCm ys1_ssCq } in
+                                            : a2_ssCr sat_ssCF;
+                                          0# -> go1_ssCm ys1_ssCq
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        }
+                                        };
+                                      0# -> go1_ssCm ys1_ssCq
+                                    }
+                                    }
+                                }; } in
+                        case go1_ssCm ys_ssBs of sat_ssCG { __DEFAULT -> sieve sat_ssCG }
+                    };
+                  -1# ->
+                    letrec {
+                      go1_ssCH
+                        = \ ds_ssCI ->
+                            case ds_ssCI of {
+                              [] -> [];
+                              : y1_ssCK ys1_ssCL -> case y1_ssCK of { I# _ -> go1_ssCH ys1_ssCL }
+                            }; } in
+                    case go1_ssCH ys_ssBs of sat_ssCO { __DEFAULT -> sieve sat_ssCO };
+                  0# -> divZeroError `cast` <Co:6> :: (forall a. a) ~R# [Int]
+                }
+                }
+            } } in
+      let { sat_ssBp = I# sc_ssBn } in : sat_ssBp sat_ssCP
+end Rec }
+
+Rec {
+someFunc_go3
+  = \ x_ssCQ ->
+      let {
+        sat_ssCU
+          = case x_ssCQ of wild_ssCS {
+              __DEFAULT ->
+                case +# wild_ssCS 1# of sat_ssCT { __DEFAULT ->
+                someFunc_go3 sat_ssCT
+                };
+              9223372036854775807# -> []
+            } } in
+      let { sat_ssCR = I# x_ssCQ } in : sat_ssCR sat_ssCU
+end Rec }
+
+someFunc2
+  = case someFunc_go3 2# of sat_ssCV { __DEFAULT -> sieve sat_ssCV }
+
+someFunc1 = \ eta_B0 -> printValue1 someFunc2 eta_B0
+
+someFunc
+  = (\ eta_B0 -> someFunc1 eta_B0)
+    `cast` <Co:3> :: (State# RealWorld -> (# State# RealWorld, () #))
+                     ~R# IO ()
+
+

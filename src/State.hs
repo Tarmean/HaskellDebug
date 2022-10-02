@@ -10,11 +10,12 @@ import qualified GHC.HeapView as Heap
 import qualified Data.Vector as V
 import qualified Data.Text as T
 import AsyncRequests ( MonadReq(..), AsyncRequests, Cache, runCachingT )
-import WhereFrom ( From(ipLoc, ipName, ipMod), Location(lFile) )
+import WhereFrom ( From(..), Location(lFile) )
 import Lens.Micro ( Lens', lens )
 import qualified Data.Text.IO as T
 import Debug.Trace (traceM)
 import Control.Monad.Trans (MonadIO)
+import Control.Monad.Except
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import qualified GhcDump.Util as R
@@ -35,21 +36,24 @@ import GhcDump.Reconstruct (reconModule)
 lookupCurrentNode :: CoreState -> Maybe (Heap.HeapGraphEntry HeapData)
 lookupCurrentNode CoreState { _heapGraph = g, _activeNode = x } = Heap.lookupHeapGraph (NE.head x) g
 
+data ViewPorts = ViewPortFile | ViewPortHeap | ViewPortCore
+  deriving (Eq, Ord, Show)
 data HeapData = HeapData { hsourceLoc :: Maybe From, hwhoCreated ::  [String] }
   deriving  (Eq, Ord, Show)
 data CoreState = CoreState {
   _heapGraph :: Heap.HeapGraph HeapData,
   _activeNode :: NonEmpty Heap.HeapGraphIndex,
-  _coreKind :: Int
+  _coreKind :: Int,
+  _focusView :: Maybe ViewPorts
 } deriving (Show)
 data RenderState = RenderState {
     _fileContent :: Maybe (V.Vector T.Text),
-    _astContent :: Maybe Module,
+    _astContent :: Either String T.Text,
     _fileImportant :: Maybe From
-} deriving Show
+} deriving (Eq, Ord, Show)
 data Requests a where
     LoadFile :: T.Text -> Requests (Maybe (V.Vector T.Text))
-    LoadGhcDump :: T.Text -> Int -> Requests (Maybe Module)
+    LoadGhcDump :: T.Text -> Int -> Requests (Either String T.Text)
 deriving instance Show (Requests a)
 data AppState = AppState {
     _coreState :: CoreState,
@@ -60,6 +64,8 @@ heapGraph :: Lens' CoreState (Heap.HeapGraph HeapData)
 heapGraph = lens _heapGraph (\s v -> s { _heapGraph = v })
 activeNode :: Lens' CoreState (NonEmpty Heap.HeapGraphIndex)
 activeNode = lens _activeNode (\s v -> s { _activeNode = v })
+focusView :: Lens' CoreState (Maybe ViewPorts)
+focusView = lens _focusView (\s v -> s { _focusView = v })
 fileContent :: Lens' RenderState (Maybe (V.Vector T.Text))
 coreKind :: Lens' CoreState Int
 coreKind = lens _coreKind (\s v -> s { _coreKind = v })
@@ -85,13 +91,13 @@ runRequest (LoadGhcDump modul v) = do
        path0 = dropEnd ".hs" modul
        pad4 s = replicate (4 - length s) '0' <> s
     let prefix = "dist-newstyle/src/"
-    let path = prefix <> T.unpack path0 <> ".pass-" <> pad4 (show v) <> ".cbor.zstd"
+    let path = prefix <> T.unpack path0 <> ".dump-prep" -- ".pass-" <> pad4 (show v) <> ".cbor.zstd"
     doesFileExist path >>= \case
       True -> do
-        o <- readSModule path
+        Right <$> T.readFile path
         -- error (renderShowS (layoutPretty defaultLayoutOptions (pretty o)) "")
-        pure (Just $ reconModule o)
-      False -> pure Nothing
+        -- pure (Just $ reconModule o)
+      False -> pure (Left $ "File not found: " <> path)
 
 deriving instance Eq (Requests a)
 deriving instance Ord (Requests a)
@@ -104,11 +110,13 @@ loadRenderState :: MonadIO m => CoreState -> Cache Requests -> m RenderState
 loadRenderState cs c = do
     let from = hsourceLoc . Heap.hgeData =<< lookupCurrentNode cs 
     content <- runCachingT c $ with (fmap lFile . ipLoc =<< from) (\loc -> send (LoadFile loc))
-    ast <- runMaybeT $ do
-          Just frm <- pure from
-          let sl = ipMod frm
-          Just o <- MaybeT $ runCachingT c $ send (LoadGhcDump sl (_coreKind cs))
-          pure o
+    ast <- do
+          case from of
+            Nothing -> pure (Left "No source location")
+            Just WhereFrom.From {..} -> do
+              runCachingT c $ send (LoadGhcDump ipMod (_coreKind cs)) >>= \case
+                  Just a -> pure a
+                  Nothing -> pure (Left "No dump")
         --   let 
         --     binderTxt = binderName  . unBndr 
         --     hasBinder s (NonRecTopBinding b _ _) = T.isInfixOf s (binderTxt b)

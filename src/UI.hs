@@ -105,10 +105,16 @@ wrapping i = unlines . chunksOf . words
       where (l,r) = L.span ((<= i) . fst) (addLen xs)
 
 rCore :: AppState -> Widget ViewPorts
-rCore AppState { _renderState = RenderState { _astContent = Just vs, _fileImportant = frm}} = 
-  (strWrap ("Module " <> T.unpack (getModuleName (moduleName vs)) <> "\n" <> T.unpack (modulePhase vs) <> " " <> show (modulePhaseId vs)) <=>)  $
-  border $ clickable ViewPortCore $ viewport ViewPortCore Vertical $ 
-    vBox ( map (raw . PPVty.render . pretty) (moduleTopBindings vs))
+rCore AppState { _renderState = RenderState { _astContent = rs, _fileImportant = frm}} = 
+  case rs of
+      Right vs ->
+        border $
+          clickable ViewPortCore $ viewport ViewPortCore Vertical $
+            (str  $ T.unpack vs)
+      Left e -> str e
+  -- (str ("Module " <> T.unpack (getModuleName (moduleName vs))  ) <=>)  $(<=> strWrap (T.unpack (modulePhase vs) <> " " <> show (modulePhaseId vs))) $
+  -- border $ clickable ViewPortCore $ viewport ViewPortCore Vertical $ 
+  --   vBox ( map (raw . PPVty.render . pretty) (moduleTopBindings vs))
   where
     --  tLoc
     --    = case ipLoc frm of
@@ -123,11 +129,9 @@ showLoc WhereFrom.Location { lFile, lStart = (a,b), lEnd = (c,d)}
   | otherwise = pre <> "(" <> show a <> "," <> show b <> ")-(" <> show c <> "," <> show d <> ")"
   where pre = T.unpack lFile <> ":"
 
-data ViewPorts = ViewPortFile | ViewPortHeap | ViewPortCore
-  deriving (Eq, Ord, Show)
 rFile :: AppState -> Widget ViewPorts
-rFile AppState { _renderState = RenderState { _fileContent = Just vs, _fileImportant = Just WhereFrom.From {WhereFrom.ipLoc = Just loc } }}
-  = (str (showLoc loc) <=>) $ border $
+rFile AppState { _renderState = RenderState { _fileContent = Just vs, _fileImportant = Just WhereFrom.From {WhereFrom.ipLoc = Just loc , ipName = name} }}
+  = (str (showLoc loc <> " " <> T.unpack name) <=>) $ border $
      clickable ViewPortFile $ viewport ViewPortFile Vertical $
       (strWrap  $ unlines $ map T.unpack $ V.toList vs)
 rFile s = border $ str ("? " <> show active <> ":\n" <> frm <> "\n" <> wrapping 70 snode)
@@ -153,7 +157,7 @@ slicing l r = V.take (r-l+3) . V.drop (l-2)
 
 app :: App AppState e ViewPorts
 app = App {
-  appDraw = \s -> [hLimitPercent 70 (rHeap s) <+> (vLimitPercent 60 (rFile s) <=> rWhoCreated s <=> (rCore s))],
+  appDraw = \s -> mkViewPorts s,
   appChooseCursor = neverShowCursor,
   appHandleEvent = \e -> do
      case e of
@@ -165,12 +169,9 @@ app = App {
       VtyEvent (Inp.EvKey (Inp.KChar '+') []) -> coreState . coreKind += 1
       VtyEvent (Inp.EvKey (Inp.KChar '-') []) -> coreState . coreKind -= 1
       VtyEvent (Inp.EvKey Inp.KEsc []) -> halt
-      Inp.MouseDown ViewPortFile Inp.BScrollDown _ _ -> vScrollBy (viewportScroll ViewPortFile) 5
-      Inp.MouseDown ViewPortFile Inp.BScrollUp _ _ -> vScrollBy (viewportScroll ViewPortFile) (-5)
-      Inp.MouseDown ViewPortHeap Inp.BScrollDown _ _ -> vScrollBy (viewportScroll ViewPortHeap) 5
-      Inp.MouseDown ViewPortHeap Inp.BScrollUp _ _ -> vScrollBy (viewportScroll ViewPortHeap) (-5)
-      Inp.MouseDown ViewPortCore Inp.BScrollDown _ _ -> vScrollBy (viewportScroll ViewPortCore) 5
-      Inp.MouseDown ViewPortCore Inp.BScrollUp _ _ -> vScrollBy (viewportScroll ViewPortCore) (-5)
+      Inp.MouseDown vp Inp.BScrollDown _ _ -> vScrollBy (viewportScroll vp) 5
+      Inp.MouseDown vp Inp.BScrollUp _ _ -> vScrollBy (viewportScroll vp) (-5)
+      Inp.MouseDown vp Inp.BLeft _ _ -> toggleFocus vp
       _ -> pure ()
      s <- get
      let os = s
@@ -179,16 +180,34 @@ app = App {
      put s,
   appStartEvent = do
       s <- get
-      setScrolls (RenderState Nothing Nothing Nothing) (s ^. renderState),
+      setScrolls (RenderState Nothing (Left "No core loaded") Nothing) (s ^. renderState),
   appAttrMap = const $ attrMap defAttr []
   }
   where
     setScrolls os s = do
-      when (os ^. fileImportant /= s ^. fileImportant) $ do
+      when (os /= s) $ do
        case s ^. fileImportant of
-           Just (WhereFrom.From { ipLoc = Just WhereFrom.Location { lStart = (a,b)}}) -> do
-             setTop (viewportScroll ViewPortFile) a 
+           Just (WhereFrom.From { ipName=name, ipLoc = Just WhereFrom.Location { lStart = (a,b)}}) -> do
+             setTop (viewportScroll ViewPortFile) (a-3) 
            _ -> pure ()
+       case s ^. fileImportant of
+           Just (WhereFrom.From { ipName=name}) -> do
+             setCoreScroll s name
+           _ -> pure ()
+    setCoreScroll RenderState{_astContent=Right ast} name = do
+        let name' = dropEnd "_info" name
+        let astPos = length $ T.lines $ fst $ T.breakOn name' ast
+        setTop (viewportScroll ViewPortCore) (astPos-3)
+    setCoreScroll _ _ = setTop (viewportScroll ViewPortCore) 0
+    mkViewPorts s = case s ^. coreState . focusView of
+      Just ViewPortHeap -> [rHeap s]
+      Just ViewPortFile -> [rFile s]
+      Just ViewPortCore -> [rCore s]
+      _ -> [hLimitPercent 70 (rHeap s) <+> (vLimitPercent 60 (rFile s) <=> rWhoCreated s <=> (rCore s))]
+    toggleFocus e = do
+         coreState . focusView %= \case
+            Nothing -> Just e
+            Just _ -> Nothing
 mkRelease p =
     case hSize p of
         Fixed -> Widget Greedy (hSize p) $
@@ -265,7 +284,7 @@ printValue :: a -> IO ()
 printValue a = do
   cache <- mkCache runRequest (\_ -> pure ())
   hg <- mkCoreState (Heap.asBox a)
-  let core = CoreState hg (0 NE.:| []) 1
+  let core = CoreState hg (0 NE.:| []) 1 Nothing
   render <- loadRenderState core cache
   let s = AppState core render cache
   -- print (core,render)
